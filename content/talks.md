@@ -5,12 +5,9 @@ ShowToc: false
 ShowBreadCrumbs: false
 ---
 
-## Upcoming
-
-- EthDenver — *p2p electronic cash or just new middlemen?*
 
 ## Past
-
+- EthDenver — *p2p electronic cash or just new middlemen?*
 - DevConnect 2025 — Eth/Acc — [Peanut Pitch](https://www.youtube.com/watch?v=OkKtOzZkR-o)
 - DevConnect 2025 — *Will We Ever Have True P2P Digital Cash?* — Onchain Banking & Fintech
 - [When Help Hurts: Why a Friendly Government is a Threat to Crypto](https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8) — Protocol Berlin
@@ -37,7 +34,9 @@ ShowBreadCrumbs: false
 
 ## Podcasts
 
-- Lift99 DAO
-- Human Story
+- [Lift99 DAO](https://www.youtube.com/watch?v=VHslneMYZUw&t=54s)
+- [Human Story](https://www.deezer.com/en/show/3550827)
+- [Stable Stories](https://open.spotify.com/episode/4KsIm8eFnrzu1Da8CvVqLD)
+- [Web3 on Fire](https://open.spotify.com/episode/7uyZ58gkzQdVeT7jgO61me)
 - Krypto Rozmowy
 - Goodnews
