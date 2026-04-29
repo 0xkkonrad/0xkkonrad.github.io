@@ -1,0 +1,50 @@
+:root[data-theme="dark"] {
+    --theme: #061c00;
+    --entry: #0c2e07;
+}
+
+body {
+    font-family: "Bitter", Georgia, serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 100;
+}
+
+.substack-feed {
+    border: 1px solid var(--primary);
+    padding: 1.5rem;
+    margin: 2rem 0;
+}
+.substack-feed-fallback {
+    margin: 0;
+}
+.substack-item {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--tertiary);
+}
+.substack-item:first-child { padding-top: 0; }
+.substack-item:last-child { border-bottom: none; padding-bottom: 0; }
+.substack-item-title {
+    margin: 0 0 0.4rem 0;
+    font-size: 1.4rem;
+    line-height: 1.35;
+}
+.substack-item-title a {
+    text-decoration: underline;
+    text-underline-offset: 0.3rem;
+}
+.substack-item-meta {
+    color: var(--secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+.substack-item-snippet {
+    color: var(--content);
+    font-size: 0.95rem;
+}
+
+.bibliography p {
+    padding-left: 2em;
+    text-indent: -2em;
+}

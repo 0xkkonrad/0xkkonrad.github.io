@@ -177,3 +177,63 @@ If loading a web font, add the `<link>` via a custom `layouts/partials/extend_he
 - [themes/PaperMod/layouts/partials/head.html](themes/PaperMod/layouts/partials/head.html) — asset bundling, theme init
 - (to create) `assets/css/extended/custom.css` — your override sheet
 - (optional) `layouts/partials/extend_head.html` — to inject web font links
+
+---
+
+# Substack feed embed (live)
+
+The latest 5 posts from [kkonrad.substack.com](https://kkonrad.substack.com/) are embedded on the homepage (below the bio) and on the standalone [/substack/](/substack/) page. The embed is **live** — new Substack posts appear without a site rebuild.
+
+## How it works
+
+```
+[kkonrad.substack.com/feed]    RSS XML
+            │
+            ▼
+[Google Apps Script doGet()]   parses RSS → returns JSON
+            │                  (CORS-friendly, "Anyone" access)
+            │
+            │  fetch()
+            ▼
+[Browser script in partial]    receives JSON, builds DOM nodes
+            │                  in the site's origin
+            ▼
+[Site CSS]                     inherits ALL theme styles automatically
+                               (Bitter font, --theme/--primary tokens, dark mode toggle)
+```
+
+The DOM nodes are built on your site's origin, so they're styled by [assets/css/extended/custom.css](assets/css/extended/custom.css) just like any other element on the page. No iframe, no postMessage, no style duplication.
+
+## The Apps Script
+
+- **Live URL (web app):** https://script.google.com/macros/s/AKfycbzAARQMtIYZBdL-fAbio7Q5BsYb5ToiwuStw7MDKWmIbyaSfcaTT2ASifdINXKq-NX9/exec
+- **Source:** https://script.google.com/home/projects/1Z-8CnhLzF-Vcpk91_dTYprIYEj80_R0xNCv8sLySOphp3zesTBPHLrCI/edit
+- Fetches `https://kkonrad.substack.com/feed`, decodes HTML entities, formats dates, and returns JSON of the form `{ items: [{ title, link, date, snippet }, ...] }`.
+- **Why ContentService not HtmlService:** ContentService responses include `Access-Control-Allow-Origin: *` for "Anyone" access deployments, so cross-origin `fetch()` works. HtmlService output is rendered through Apps Script's iframe sandbox, which is what we just got rid of.
+
+To change the Substack source, edit the `UrlFetchApp.fetch(...)` URL in the script and redeploy. **Always use *Manage deployments → Edit (pencil) → New version → Deploy* to keep the same exec URL.** "New deployment" mints a fresh URL — if that happens, paste it into the `url` constant in [layouts/partials/substack-feed.html](layouts/partials/substack-feed.html).
+
+## Hugo wiring
+
+| File | Role |
+|---|---|
+| [layouts/partials/substack-feed.html](layouts/partials/substack-feed.html) | Container `<div>` + fetch script that builds `.substack-item` nodes from the JSON |
+| [layouts/shortcodes/substack-feed.html](layouts/shortcodes/substack-feed.html) | Calls the partial; usable in markdown as `{{< substack-feed >}}` |
+| [layouts/partials/home_info.html](layouts/partials/home_info.html) | Override of theme partial; mounts the feed below the homepage bio |
+| [content/substack/_index.md](content/substack/_index.md) | Standalone page at `/substack/` using the shortcode |
+| [assets/css/extended/custom.css](assets/css/extended/custom.css) | `.substack-feed` / `.substack-item-*` styles, using the same tokens as the rest of the site |
+| [hugo.toml](hugo.toml) | `[[menu.main]]` entry exposing `/substack/` in the nav |
+
+## Updating the styling
+
+- **Visual style** (border, spacing, type sizes): edit `.substack-*` rules in [assets/css/extended/custom.css](assets/css/extended/custom.css). Inherits site fonts and theme tokens automatically — no Apps Script change needed.
+- **Data shape** (item count, snippet length, date format): edit `doGet` in the Apps Script and redeploy.
+- **Site-wide token changes** (e.g., changing `--primary` in `custom.css`): the feed picks them up automatically since it's in the same DOM.
+
+## Caveats
+
+- **Requires JavaScript.** No-JS visitors see only the fallback `Read the latest on Substack →` link. Acceptable trade-off for a personal site; if not, switch to a build-time fetch (`resources.GetRemote`) — feed becomes static-at-build-time.
+- **Apps Script cold-start** (~500ms–2s on first load) — the feed pops in a moment after the rest of the page paints. The fallback link is visible until then.
+- **Apps Script outage** → fallback link stays visible. The rest of the page still renders.
+- **Item count** capped at 5 inside the script (`Math.min(items.length, 5)`); to change it, edit the script.
+- **Snippet length** capped at 200 chars in the script; adjust there if you want longer/shorter previews.

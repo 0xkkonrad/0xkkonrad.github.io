@@ -263,7 +263,7 @@ Here are the costs of team switching:
 
 It’s hard. Don’t rush it.
 
-Check out [my substack article on co-founder fit questions](https://konradurban.substack.com/p/co-founder-fit-questions).
+Check out [my substack article on co-founder fit questions](https://kkonrad.substack.com/p/co-founder-fit-questions).
 
 Alternative ways of finding co-founders:
 

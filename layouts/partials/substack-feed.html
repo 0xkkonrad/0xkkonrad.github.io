@@ -1,0 +1,51 @@
+<div class="substack-feed" id="substack-feed">
+  <p class="substack-feed-fallback">
+    <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">
+      Read the latest on Substack →
+    </a>
+  </p>
+</div>
+<script>
+(function () {
+  var container = document.getElementById('substack-feed');
+  if (!container || !window.fetch) return;
+  var url = 'https://script.google.com/macros/s/AKfycbzAARQMtIYZBdL-fAbio7Q5BsYb5ToiwuStw7MDKWmIbyaSfcaTT2ASifdINXKq-NX9/exec';
+
+  fetch(url, { redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var items = (data && data.items) || [];
+      if (!items.length) return;
+      var frag = document.createDocumentFragment();
+      items.forEach(function (item) {
+        var article = document.createElement('article');
+        article.className = 'substack-item';
+
+        var h3 = document.createElement('h3');
+        h3.className = 'substack-item-title';
+        var a = document.createElement('a');
+        a.href = item.link || '#';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = item.title || '';
+        h3.appendChild(a);
+        article.appendChild(h3);
+
+        var meta = document.createElement('div');
+        meta.className = 'substack-item-meta';
+        meta.textContent = item.date || '';
+        article.appendChild(meta);
+
+        var snippet = document.createElement('div');
+        snippet.className = 'substack-item-snippet';
+        snippet.textContent = (item.snippet || '') + '…';
+        article.appendChild(snippet);
+
+        frag.appendChild(article);
+      });
+      container.innerHTML = '';
+      container.appendChild(frag);
+    })
+    .catch(function () { /* keep fallback link */ });
+})();
+</script>

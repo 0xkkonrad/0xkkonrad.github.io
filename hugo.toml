@@ -47,16 +47,14 @@ enableEmoji = true
     Content = """
 I'm Konrad. I co-founded [Peanut](https://peanut.me).
 
-Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [twitter](https://twitter.com/0xkkonrad), [Farcaster](https://warpcast.com/kkonrad), and [Substack](https://konradurban.substack.com/).
+Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [twitter](https://twitter.com/0xkkonrad), [Substack](https://kkonrad.substack.com/).
 
 I also (co-)founded:
-
 - 2020 — [Let's Phi](https://letsphi.com/) — a community of academic philosophers with non-academic careers (1.8k members)
 - 2020 — [Knit](http://knitvideo.com/) — a failed virtual events B2B SaaS (10k+ users, with [Orest](https://tarasiuk.me/about-orest))
 - 2016 — [Open Blues](http://www.openblues.pl/) — a blues dance festival (sold out every year, with Isabella Larsen)
 - 2016 — [Radowid](http://radowid.com/) — a failed luxury silk brand
 
-I also organise [blues dance events](/blues/) and freelanced in [film and journalism](/films/).
 """
 
   [params.assets]
@@ -74,22 +72,22 @@ I also organise [blues dance events](/blues/) and freelanced in [film and journa
   weight = 10
 
 [[menu.main]]
+  identifier = "substack"
+  name = "substack"
+  url = "/substack/"
+  weight = 15
+
+[[menu.main]]
   identifier = "talks"
   name = "talks"
   url = "/talks/"
   weight = 20
 
 [[menu.main]]
-  identifier = "films"
-  name = "films"
-  url = "/films/"
+  identifier = "misc"
+  name = "misc"
+  url = "/misc/"
   weight = 30
-
-[[menu.main]]
-  identifier = "blues"
-  name = "blues"
-  url = "/blues/"
-  weight = 40
 
 [[menu.main]]
   identifier = "search"

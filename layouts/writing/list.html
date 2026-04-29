@@ -1,0 +1,30 @@
+{{- define "main" }}
+
+<header class="page-header">
+  {{- partial "breadcrumbs.html" . }}
+  <h1>{{ .Title }}</h1>
+</header>
+
+{{- if .Content }}
+<div class="post-content md-content">
+  {{- .Content }}
+</div>
+{{- end }}
+
+<div class="writing-index">
+  {{- range .Sections }}
+  {{- $pages := .RegularPages }}
+  {{- if $pages }}
+  <div class="writing-category">
+    <h3>{{ .Title }}</h3>
+    <ul>
+      {{- range $pages }}
+      <li><a href="{{ .Permalink }}">{{ .Title }}</a></li>
+      {{- end }}
+    </ul>
+  </div>
+  {{- end }}
+  {{- end }}
+</div>
+
+{{- end }}
