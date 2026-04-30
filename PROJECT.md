@@ -63,7 +63,17 @@ Stack: Hugo + PaperMod, deployed via GitHub Actions to GitHub Pages.
 - [ ] Whether to keep the `0xkkonrad.github.io` repo name or rename (cosmetic, no functional impact)
 - [ ] Add a favicon / OG image (currently empty in `[params.assets]`)
 - [ ] Add Google Analytics or alternative if you want stats — just set `googleAnalytics = "G-XXX"` in `hugo.toml`
-- [ ] If you want fancier typography (justified Knuth-Plass line breaks etc.), layer [chenglou/pretext](https://github.com/chenglou/pretext) via PaperMod's `extend_head.html` partial — purely additive, can be done anytime
+- [ ] Three.js background animation sitewide — scoped, light-touch ambient effect behind content (not a full WebGL takeover)
+
+---
+
+## Will not do
+
+- **Pretext-rendered hero + dragon-physics canvas** ([0xNyk/pretext-playground](https://github.com/0xNyk/pretext-playground) style, scoped to the home `<h1>`). Evaluated 2026-04-30:
+  - Bloat: ~30–45KB gzipped on `/` only (pretext ~25–30KB + trimmed dragon engine ~5–10KB + glue). Acceptable.
+  - Complexity is the blocker: requires a new esbuild/Vite step in the Hugo pipeline, custom rewrite of `dragon.ts` to operate on a bounded canvas (the playground assumes fullscreen), `document.fonts.ready` gating to avoid Bitter FOUT snap, dark/light theme reactivity on canvas glyphs, mobile/touch fallback (cursor physics doesn't translate), and an `aria-hidden` overlay pattern to keep the real `<h1>` for SEO/screen readers.
+  - Realistic cost: ~half a day prototype, 1–2 days to production-quality, plus ongoing maintenance — every font/theme/headline tweak now also touches a canvas.
+  - Verdict: not worth the build-pipeline + maintenance tax for a hero flourish. Three.js ambient background (above) achieves a similar "site feels alive" goal at lower coupling.
 
 ---
 
