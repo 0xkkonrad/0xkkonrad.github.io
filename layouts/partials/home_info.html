@@ -1,8 +1,17 @@
 {{- with site.Params.homeInfoParams }}
 <article class="first-entry home-info">
-    <header class="entry-header">
-        <h1>{{ .Title | markdownify }}</h1>
-    </header>
+    <div class="home-info-header">
+        {{- with site.Params.profileImage }}
+        {{- $img := resources.Get . }}
+        {{- if $img }}<img class="profile-image" src="{{ $img.Permalink }}" alt="Profile photo" width="120" height="120" />{{ end }}
+        {{- end }}
+        <div class="home-info-intro">
+            <header class="entry-header">
+                <h1>{{ .Title | markdownify }}</h1>
+            </header>
+            {{- with .Subtitle }}<p class="home-info-subtitle">{{ . | $.Page.RenderString }}</p>{{- end }}
+        </div>
+    </div>
     <div class="entry-content md-content">
         {{ $opts := dict "display" "block" }}
         {{ .Content | $.Page.RenderString $opts }}

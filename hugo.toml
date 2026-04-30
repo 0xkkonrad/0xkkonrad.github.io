@@ -40,19 +40,20 @@ enableEmoji = true
   hidemeta = false
   hideSummary = false
   comments = false
-  mainSections = ["writing"]
+  mainSections = []
+
+  profileImage = "pfp.jpg"
 
   [params.homeInfoParams]
-    Title = "henlo fren"
+    Title = "Hey there!"
+    Subtitle = "I'm Konrad, cofounder of [Peanut](https://peanut.me) — a global cash app."
     Content = """
-I'm Konrad. I co-founded [Peanut](https://peanut.me).
-
 Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [twitter](https://twitter.com/0xkkonrad), [Substack](https://kkonrad.substack.com/).
 
 I also (co-)founded:
 - 2020 — [Let's Phi](https://letsphi.com/) — a community of academic philosophers with non-academic careers (1.8k members)
 - 2020 — [Knit](http://knitvideo.com/) — a failed virtual events B2B SaaS (10k+ users, with [Orest](https://tarasiuk.me/about-orest))
-- 2016 — [Open Blues](http://www.openblues.pl/) — a blues dance festival (sold out every year, with Isabella Larsen)
+- 2016 — [Open Blues](http://www.openblues.pl/) — a blues dance festival (with Isabella Larsen)
 - 2016 — [Radowid](http://radowid.com/) — a failed luxury silk brand
 
 """
@@ -70,12 +71,6 @@ I also (co-)founded:
   name = "writing"
   url = "/writing/"
   weight = 10
-
-[[menu.main]]
-  identifier = "substack"
-  name = "substack"
-  url = "/substack/"
-  weight = 15
 
 [[menu.main]]
   identifier = "talks"

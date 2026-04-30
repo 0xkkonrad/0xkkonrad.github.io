@@ -7,10 +7,6 @@ body {
     font-family: "Bitter", Georgia, serif;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 100;
-}
-
 .substack-feed {
     border: 1px solid var(--primary);
     padding: 1.5rem;
@@ -42,6 +38,34 @@ h1, h2, h3, h4, h5, h6 {
 .substack-item-snippet {
     color: var(--content);
     font-size: 0.95rem;
+}
+
+.home-info-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.home-info-intro {
+    flex: 1;
+}
+
+.home-info-subtitle {
+    margin: 0.25rem 0 0;
+}
+
+.home-info-subtitle a {
+    text-decoration: underline;
+    text-underline-offset: 0.3rem;
+}
+
+.profile-image {
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 1px solid var(--primary);
+    padding: 3px;
+    object-fit: cover;
 }
 
 .bibliography p {

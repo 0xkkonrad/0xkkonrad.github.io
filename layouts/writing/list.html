@@ -11,20 +11,31 @@
 </div>
 {{- end }}
 
-<div class="writing-index">
-  {{- range .Sections }}
-  {{- $pages := .RegularPages }}
-  {{- if $pages }}
-  <div class="writing-category">
-    <h3>{{ .Title }}</h3>
-    <ul>
+{{- range .Sections }}
+{{- $pages := .RegularPages }}
+{{- if $pages }}
+<div class="archive-year">
+  <div class="archive-month">
+    <h3 class="archive-month-header">{{ .Title }}</h3>
+    <div class="archive-posts">
       {{- range $pages }}
-      <li><a href="{{ .Permalink }}">{{ .Title }}</a></li>
+      <div class="archive-entry">
+        <h3 class="archive-entry-title">{{ .Title | markdownify }}</h3>
+        <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
+      </div>
       {{- end }}
-    </ul>
+    </div>
   </div>
-  {{- end }}
-  {{- end }}
 </div>
+{{- end }}
+{{- end }}
+
+<hr>
+
+<header class="page-header">
+  <h1>Substack</h1>
+</header>
+
+{{ partial "substack-feed.html" . }}
 
 {{- end }}
