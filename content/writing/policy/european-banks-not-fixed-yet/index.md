@@ -4,6 +4,7 @@ date: 2016-01-01
 summary: "A stress test of European systemically important banks shows they remain perilously undercapitalised — and that regulators and official stress tests obscure this."
 tags: [banking, regulation, leverage, fintech]
 showToc: false
+aliases: ["/writing/fintech/european-banks-not-fixed-yet/"]
 ---
 
 Dangerously low leverage ratios were one of the main causes of the 2008 financial crisis. The post-crisis regulatory response — Basel III and its EU implementation CRD IV — was supposed to fix this. It hasn't.

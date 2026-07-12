@@ -1,19 +1,18 @@
 ---
 title: "Talks"
+description: "Conference talks and podcasts — payments, crypto, and some philosophy."
 hideMeta: true
 ShowToc: false
 ShowBreadCrumbs: false
 ---
 
-
-## Past
 - EthDenver — *p2p electronic cash or just new middlemen?*
 - DevConnect 2025 — Eth/Acc — [Peanut Pitch](https://www.youtube.com/watch?v=OkKtOzZkR-o)
 - DevConnect 2025 — *Will We Ever Have True P2P Digital Cash?* — Onchain Banking & Fintech
 - [When Help Hurts: Why a Friendly Government is a Threat to Crypto](https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8) — Protocol Berlin
 - [Wen p2p Electronic Cash System?](https://app.devcon.org/schedule/ZFX3ZF) — Devcon 7 SEA
 - [Chain abstraction? But I want to know where my tokens are](https://www.youtube.com/watch?v=J_VTceUdfgs) — Devcon 7 SEA
-- [How can wallets deal with the multichain nightmare?](https://cfp.walletuncon.org/walletuncon-2023/talk/9QGLLM/) — DevCon Wallet Uncon
+- [How can wallets deal with the multichain nightmare?](https://web.archive.org/web/20240805094400/https://cfp.walletuncon.org/walletuncon-2023/talk/9QGLLM/) — DevCon Wallet Uncon
 - *Why wallets suck for payments* — DevCon Wallet Uncon
 - *Will we ever have a p2p digital cash system?* — EthCC Payments Cafe
 - *The Next Wave of web3 Applications* (panel) — EthCC Infra Breakfast

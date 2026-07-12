@@ -15,7 +15,24 @@
     <div class="entry-content md-content">
         {{ $opts := dict "display" "block" }}
         {{ .Content | $.Page.RenderString $opts }}
-        {{ partial "substack-feed.html" $ }}
+        {{- with site.Data.selected_writing }}
+        <div class="selected-writing">
+            <h2 class="selected-writing-title">Selected writing</h2>
+            <ul class="selected-writing-list">
+                {{- range . }}
+                {{- $href := .url }}
+                {{- if not (hasPrefix $href "http") }}{{ $href = relURL $href }}{{ end }}
+                <li>
+                    <a href="{{ $href }}"{{ if hasPrefix .url "http" }} target="_blank" rel="noopener"{{ end }}>{{ .title }}</a>
+                    {{- with .year }} <span class="selected-writing-year">({{ . }})</span>{{ end }}
+                </li>
+                {{- end }}
+            </ul>
+            <p class="selected-writing-more">
+                <a href="{{ "writing" | relURL }}">All writing →</a> · <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">Substack →</a>
+            </p>
+        </div>
+        {{- end }}
     </div>
     <footer class="entry-footer">
         {{ partial "social_icons.html" (dict "align" site.Params.homeInfoParams.AlignSocialIconsTo) }}

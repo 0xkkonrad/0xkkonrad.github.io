@@ -3,6 +3,7 @@
 <header class="page-header">
   {{- partial "breadcrumbs.html" . }}
   <h1>{{ .Title }}</h1>
+  {{- with .Description }}<div class="post-description">{{ . }}</div>{{- end }}
 </header>
 
 {{- if .Content }}
@@ -11,31 +12,40 @@
 </div>
 {{- end }}
 
+{{- if .Sections }}
+{{- /* /writing/ root: one block per category, newest first within each */}}
 {{- range .Sections }}
-{{- $pages := .RegularPages }}
+{{- $pages := .RegularPages.ByDate.Reverse }}
 {{- if $pages }}
 <div class="archive-year">
   <div class="archive-month">
-    <h3 class="archive-month-header">{{ .Title }}</h3>
+    <h3 class="archive-month-header"><a href="{{ .Permalink }}">{{ .Title }}</a></h3>
     <div class="archive-posts">
       {{- range $pages }}
-      <div class="archive-entry">
-        <h3 class="archive-entry-title">{{ .Title | markdownify }}</h3>
-        <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
-      </div>
+      {{- partial "writing-entry.html" . }}
       {{- end }}
     </div>
   </div>
 </div>
 {{- end }}
 {{- end }}
+{{- else }}
+{{- /* category page: its own posts, newest first */}}
+<div class="archive-posts">
+  {{- range .RegularPages.ByDate.Reverse }}
+  {{- partial "writing-entry.html" . }}
+  {{- end }}
+</div>
+{{- end }}
 
+{{- if .Parent.IsHome }}
 <hr>
 
 <header class="page-header">
-  <h1>Substack</h1>
+  <h1>Latest on Substack</h1>
 </header>
 
 {{ partial "substack-feed.html" . }}
+{{- end }}
 
 {{- end }}

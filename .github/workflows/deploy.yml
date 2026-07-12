@@ -4,6 +4,9 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+  schedule:
+    # daily rebuild so the build-time Substack feed stays fresh
+    - cron: '23 5 * * *'
 
 permissions:
   contents: read

@@ -1,71 +1,35 @@
 # kkonrad.com — project tracker
 
-Live preview: https://0xkkonrad.github.io/
-Final domain (post-cutover): https://kkonrad.com/
+Live: https://kkonrad.com/ (GitHub Pages, custom domain, DNS cutover done)
 Stack: Hugo + PaperMod, deployed via GitHub Actions to GitHub Pages.
+Deploys: push to `master`, manual dispatch, or the **daily 05:23 UTC cron** (keeps the build-time Substack feed fresh).
 
 ---
 
-## Done
+## Done — 2026-07-12 site overhaul
 
-- [x] Check environment (hugo installed locally? — no; git clean; on master)
-- [x] Create `migrate-to-hugo` branch
-- [x] Wipe al-folio scaffolding (300+ files: layouts, includes, _projects, _bibliography, 9 GH workflows, Docker, Gemfile, etc.)
-- [x] Scaffold Hugo + add PaperMod as git submodule under `themes/PaperMod`
-- [x] Write `hugo.toml` (auto theme, ToC, breadcrumbs, search, RSS, JSON output, taxonomies, homeInfoParams bio)
-- [x] Build content tree: home, talks, films, blues, writing index, 4 category sections (onchain-payments, cofounder-search, fintech, philosophy)
-- [x] Migrate Google Sites pages — talks/films/blues as plain markdown
-- [x] Migrate 7 external articles as redirect stubs (meta refresh + fallback link)
-- [x] Fetch & convert the EF/Antler honest guide → in-repo page bundle at `content/writing/cofounder-search/ef-antler-honest-guide/`
-- [x] Add `deploy.yml` (Hugo extended → upload-pages-artifact → deploy-pages)
-- [x] Add `static/CNAME` (`kkonrad.com`)
-- [x] Add `.gitignore` (Hugo style, ignore `.claude/`)
-- [x] Push to master, fix Hugo version (0.142 → 0.150 — PaperMod requires ≥0.146), build green in 40s
+- [x] **Substack feed is now build-time.** `layouts/partials/substack-feed.html` fetches the public RSS with `resources.GetRemote` at build; no client JS, no Apps Script proxy. Falls back to a plain Substack link if the fetch fails. Freshness via daily cron in `deploy.yml`.
+- [x] **Writing section rebuilt.** 16 external-essay stubs (frontmatter `externalURL` → kkonrad.substack.com, real dates from the Substack API) across onchain-payments (9), fintech (5), cofounder-search (2). List rows link straight out (marked ↗) via `layouts/partials/writing-entry.html`; category pages render their own posts; the Substack block appears only on `/writing/` itself. Categories ordered by `weight` in each `_index.md`.
+- [x] **Home: curated "Selected writing"** from `data/selected_writing.yaml` (edit that file to change the picks) instead of the live feed.
+- [x] **Old URLs restored**: the four pre-April stub paths are back as files; the moved banking article has an `aliases:` entry for its old `/writing/fintech/` URL.
+- [x] **Dead links fixed** (knitvideo → Wayback, radowid → Wayback, Honey Honey Blues → Wayback, Oko i Ucho → Wayback, WalletUncon CFP → Wayback, joinef what-does-ef-look-for → Wayback, Vimeo *manage* URL → public URL, peanut.to → peanut.me).
+- [x] **Favicon set** (`static/favicon.ico` + PNGs + apple-touch-icon, generated from pfp.jpg) and **default OG image** (`static/og-card.png`, wired via `[params] images`). Regenerate the card by editing the HTML snippet in the repo history (commit that added it) or ask an agent.
+- [x] **Bitter self-hosted** (`static/fonts/*.woff2`, variable font, latin + latin-ext; `@font-face` in `assets/css/extended/custom.css`). Google Fonts removed (perf + GDPR).
+- [x] **HTTPS enforced** on GitHub Pages (http:// now 301s to https://).
+- [x] Search placeholder, talks/misc meta descriptions, dates on writing rows.
 
----
+## To do
 
-## To do — DNS cutover (manual, in order)
-
-- [ ] **GitHub** — repo Settings → Pages → set Custom domain to `kkonrad.com` and save
-- [ ] **DNS registrar** for `kkonrad.com`:
-  - [ ] Apex: four `A` records → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
-  - [ ] `www`: `CNAME` → `0xkkonrad.github.io.`
-- [ ] Wait for DNS propagation (5–60 min)
-- [ ] **GitHub** — Settings → Pages → tick **Enforce HTTPS** once cert is provisioned
-- [ ] Verify `https://kkonrad.com` end-to-end (home, /writing/, /talks/, sample article)
-- [ ] **Google Sites** — unpublish kkonrad.com from Google Sites (only after step above passes)
-
----
-
-## To do — polish (non-blocking)
-
-- [ ] Update article dates in frontmatter — currently estimates:
-  - `content/writing/onchain-payments/wen-p2p-electronic-cash-system.md` — 2024-11-15
-  - `content/writing/onchain-payments/link-based-transfer-abstraction.md` — 2024-09-01
-  - `content/writing/onchain-payments/sidestep-onchain-identity.md` — 2024-07-01
-  - `content/writing/cofounder-search/cofounder-fit-questions.md` — 2020-06-01
-  - `content/writing/cofounder-search/ef-antler-honest-guide/index.md` — 2022-09-01
-  - `content/writing/fintech/european-banks-not-fixed-yet.md` — 2018-01-01
-  - `content/writing/philosophy/conformism-locating-disagreement.md` — 2019-06-01
-  - `content/writing/philosophy/super-mary-mission-impossible.md` — 2019-06-01
-- [ ] Skim the EF/Antler article — a few list items had merged content from Google Sites HTML that I patched by hand; might still have a rough spot
-- [ ] Adjust the `summary` field on each external-article stub to taste (mine, not yours)
-- [x] `LICENSE` replaced with the Unlicense (public domain dedication)
-- [ ] Edit `[params.homeInfoParams].Content` in `hugo.toml` to refine the home-page bio
-- [ ] Decide if the substack `Wen p2p…` URL slug is right (currently guessed `/p/wen-p2p-electronic-cash-system`) — update if needed
-
----
+- [ ] **Analytics**: create a free account at goatcounter.com, then uncomment `goatcounter = "..."` in `hugo.toml` `[params]` — the script renders only when set (`layouts/partials/extend_head.html`).
+- [ ] Verify estimated dates on the in-repo philosophy/policy articles (conformism 2017-10, super-mary 2020-01, european-banks 2016-01). Substack-stub dates are real (pulled from the Substack API).
+- [ ] Curate `data/selected_writing.yaml` to taste — current picks: wen-p2p, wrench attacks, network-vs-ecosystem, fat wallet, link-based transfer abstraction, EF/Antler guide.
+- [ ] Skim the EF/Antler article — a few list items had merged content from Google Sites HTML patched by hand; might still have a rough spot.
 
 ## Future / open decisions
 
-- [ ] Whether `/writing/` should show category cards or a flat chronological list — pick after using it
-- [ ] Whether to mirror Substack articles into the repo for SEO, or keep redirect stubs (current approach: stubs, single source of truth in Substack)
-- [ ] Whether to keep the `0xkkonrad.github.io` repo name or rename (cosmetic, no functional impact)
-- [ ] Add a favicon / OG image (currently empty in `[params.assets]`)
-- [ ] Add Google Analytics or alternative if you want stats — just set `googleAnalytics = "G-XXX"` in `hugo.toml`
+- [ ] Whether to mirror Substack essays in-repo for SEO (current: external stubs + build-time feed; single source of truth stays Substack)
+- [ ] Whether to keep the `0xkkonrad.github.io` repo name or rename (cosmetic)
 - [ ] Three.js background animation sitewide — scoped, light-touch ambient effect behind content (not a full WebGL takeover)
-
----
 
 ## Will not do
 
@@ -75,52 +39,52 @@ Stack: Hugo + PaperMod, deployed via GitHub Actions to GitHub Pages.
   - Realistic cost: ~half a day prototype, 1–2 days to production-quality, plus ongoing maintenance — every font/theme/headline tweak now also touches a canvas.
   - Verdict: not worth the build-pipeline + maintenance tax for a hero flourish. Three.js ambient background (above) achieves a similar "site feels alive" goal at lower coupling.
 
----
+## Done — April 2026 migration (history)
+
+- Migrated from al-folio/Google Sites to Hugo + PaperMod (submodule), GH Actions deploy, CNAME kkonrad.com.
+- Consolidated films/blues into /misc, merged Substack into /writing/, home redesign with pfp + bio.
+- DNS cutover completed (apex A records + www CNAME, verified live).
 
 ## Repo layout (for reference)
 
 ```
 .
-├── hugo.toml                       # site config
-├── archetypes/                     # Hugo's new-content templates (currently empty)
+├── hugo.toml                       # site config (menu, params, og image, goatcounter hook)
+├── data/
+│   └── selected_writing.yaml       # home-page "Selected writing" picks
 ├── content/
 │   ├── _index.md                   # → /            (homeInfoParams in hugo.toml drives the bio)
 │   ├── search.md                   # → /search/     (PaperMod fuse.js search)
 │   ├── talks.md                    # → /talks/
-│   ├── films.md                    # → /films/
-│   ├── blues.md                    # → /blues/
+│   ├── misc.md                     # → /misc/       (blues, film, journalism)
 │   └── writing/
-│       ├── _index.md               # → /writing/
-│       ├── onchain-payments/
-│       │   ├── _index.md
-│       │   └── *.md                # redirect stubs
-│       ├── cofounder-search/
-│       │   ├── _index.md
-│       │   ├── cofounder-fit-questions.md
-│       │   └── ef-antler-honest-guide/
-│       │       └── index.md        # full in-repo article (page bundle)
-│       ├── fintech/
-│       └── philosophy/
+│       ├── _index.md               # → /writing/    (categories + build-time Substack feed)
+│       ├── onchain-payments/       # 9 external stubs → Substack
+│       ├── fintech/                # 5 external stubs → Substack
+│       ├── cofounder-search/       # EF/Antler guide (in-repo) + 2 stubs
+│       ├── policy/                 # european-banks (in-repo, alias from old fintech URL)
+│       └── philosophy/             # 2 in-repo papers
+├── layouts/
+│   ├── partials/substack-feed.html # build-time RSS fetch + render
+│   ├── partials/writing-entry.html # one list row (externalURL-aware)
+│   ├── partials/home_info.html     # bio + Selected writing
+│   ├── partials/extend_head.html   # font preload + GoatCounter hook
+│   └── writing/list.html           # /writing/ + category pages
+├── assets/css/extended/custom.css  # fonts, dark palette, feed/selected styles
 ├── static/
-│   └── CNAME                       # kkonrad.com
-├── themes/
-│   └── PaperMod/                   # git submodule
-└── .github/workflows/deploy.yml    # Hugo build → GitHub Pages
+│   ├── CNAME                       # kkonrad.com
+│   ├── fonts/                      # Bitter variable woff2 (latin, latin-ext)
+│   ├── og-card.png                 # default social share card
+│   └── favicon.ico + PNG set      # generated from pfp.jpg
+├── themes/PaperMod/                # git submodule
+└── .github/workflows/deploy.yml    # push + daily-cron build → GitHub Pages
 ```
 
-## Local dev (when you want it)
+## Local dev
 
 ```sh
-# install Hugo extended (Windows)
-winget install Hugo.Hugo.Extended
-
-# clone with submodule
-git clone --recurse-submodules <repo>
-# or, in an existing clone:
-git submodule update --init --recursive
-
-# run dev server
-hugo server -D     # http://localhost:1313, hot reload
+git clone --recurse-submodules <repo>   # or: git submodule update --init
+hugo server -D                          # http://localhost:1313
 ```
 
-To add a new article: `cd content/writing/<category>/`, create `<slug>.md` with frontmatter (`title`, `date`, `summary`, `tags`), write markdown, `git push`. The Action rebuilds in ~40s.
+To add an article: `content/writing/<category>/<slug>.md` with `title`, `date`, `summary`, `tags` — or an external stub with `externalURL` in frontmatter (see any onchain-payments file). Push to master; the Action rebuilds in ~40s.

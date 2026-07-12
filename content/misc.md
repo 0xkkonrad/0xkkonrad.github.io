@@ -1,5 +1,6 @@
 ---
 title: "Misc"
+description: "Blues dancing, film work, and journalism."
 hideMeta: true
 ShowToc: false
 ShowBreadCrumbs: false
@@ -9,15 +10,15 @@ ShowBreadCrumbs: false
 
 I co-founded:
 
-- [Open Blues](http://openblues.pl) — a yearly festival that attracts guests from 5 continents. 100% DIY and volunteer-run.
-- [Honey Honey Blues](https://honeyhoneyblues.com/) (sunset) — weekly blues classes in Warsaw, Poland. I usually teach with [Kate Phellini](https://katephellini.com/about).
+- [Open Blues](https://www.openblues.pl/) — a yearly festival that attracts guests from 5 continents. 100% DIY and volunteer-run.
+- [Honey Honey Blues](https://web.archive.org/web/20240417024513/https://www.honeyhoneyblues.com/) (sunset) — weekly blues classes in Warsaw, Poland. I usually teach with [Kate Phellini](https://katephellini.com/about).
 - [NoName Blues](https://www.facebook.com/nnblues/) (sunset) — weekly blues parties in Warsaw, Poland.
 
 ## Film
 
-- I worked as the 2nd director for [Oko i Ucho](http://www.okoiucho.pl/) on a peak-time [TV documentary film series](https://niepodlegla.gov.pl/aktualnosci/rzeczpospolita-nieodbudowana-serial-o-ii-rp-ktorej-juz-nie-ma/) with a viewership of around 0.5M. The series is about the influence of politics on architecture and urban landscapes.
+- I worked as the 2nd director for [Oko i Ucho](https://web.archive.org/web/20251211155203/http://www.okoiucho.pl/) on a peak-time [TV documentary film series](https://niepodlegla.gov.pl/aktualnosci/rzeczpospolita-nieodbudowana-serial-o-ii-rp-ktorej-juz-nie-ma/) with a viewership of around 0.5M. The series is about the influence of politics on architecture and urban landscapes.
 - [Elegy for Dunelm House](https://vimeo.com/262599625) — Producer & Co-Director. Culture Y Award for Best Film at St Andrews University.
-- [Radowid Silk](https://vimeo.com/manage/videos/254476400) — Producer.
+- [Radowid Silk](https://vimeo.com/254476400) — Producer.
 
 ## Journalism
 

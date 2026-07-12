@@ -1,3 +1,5 @@
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;700&display=swap">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{{ "fonts/bitter-var-latin.woff2" | relURL }}">
+{{- /* GoatCounter analytics — renders only when goatcounter is set in [params] */}}
+{{- with site.Params.goatcounter }}
+<script data-goatcounter="https://{{ . }}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+{{- end }}

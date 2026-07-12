@@ -1,0 +1,7 @@
+{{- /* One row in a writing list. Entries with externalURL link straight out (Substack etc.). */}}
+{{- $ext := .Params.externalURL }}
+<div class="archive-entry">
+  <h3 class="archive-entry-title">{{ .Title | markdownify }}{{ if $ext }}<span class="external-mark" aria-hidden="true"> ↗</span>{{ end }}</h3>
+  <div class="archive-entry-meta">{{ .Date | dateFormat "January 2006" }}</div>
+  <a class="entry-link" aria-label="link to {{ .Title | plainify }}" href="{{ or $ext .Permalink }}"{{ if $ext }} target="_blank" rel="noopener"{{ end }}></a>
+</div>

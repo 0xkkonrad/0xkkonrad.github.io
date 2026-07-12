@@ -1,0 +1,20 @@
+# Curated list rendered on the home page (layouts/partials/home_info.html).
+# url can be external (opens in new tab) or a site-relative path.
+- title: "Wen p2p electronic cash system?"
+  url: https://kkonrad.substack.com/p/wen-p2p-electronic-cash-system
+  year: 2025
+- title: "I modeled wrench attacks. Privacy makes them worse."
+  url: https://kkonrad.substack.com/p/i-modeled-wrench-attacks-privacy
+  year: 2026
+- title: "Network vs Ecosystem Effects"
+  url: https://kkonrad.substack.com/p/network-vs-ecosystem-effects
+  year: 2026
+- title: "The Fat Wallet gets fatter as FX moves downstream"
+  url: https://kkonrad.substack.com/p/the-fat-wallet-gets-fatter-as-fx
+  year: 2025
+- title: "Towards Link-Based Transfer Abstraction"
+  url: https://kkonrad.substack.com/p/towards-link-based-transfer-abstraction
+  year: 2024
+- title: "Entrepreneur First & Antler: an honest guide"
+  url: /writing/cofounder-search/ef-antler-honest-guide/
+  year: 2022

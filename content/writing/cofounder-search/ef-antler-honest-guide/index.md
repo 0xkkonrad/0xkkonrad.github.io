@@ -12,7 +12,7 @@ TocOpen: false
 ⚠️ *Disclaimers:
 
 - I have not been through Antler but it’s similar enough for info to be relevant. If you went through Antler and want to contribute, let me know!
-- I did not team up with anyone through EF or ever pitched to them. I found my cofounder through YC co-founder matching and we’re building [Peanut Protocol](http://peanut.to/) (hmu if you’re curious!). I still consider the programme to be extremely valuable and it definitely changed my life in many positive ways.
+- I did not team up with anyone through EF or ever pitched to them. I found my cofounder through YC co-founder matching and we’re building [Peanut](https://peanut.me/) (hmu if you’re curious!). I still consider the programme to be extremely valuable and it definitely changed my life in many positive ways.
 - I am often wrong and these are just my opinions.*
 
 ## Why write this?
@@ -111,7 +111,7 @@ The hyper-specialists with deep insider knowledge. Examples: lawyer with 15 expe
 
 A large proportion of EF cohort members come from direct recommendations or from being headhunted by the EF team. It probably makes sense to check who of your LinkedIn connections went through EF and ask for a recommendation. Being recommended or being headhunted has a strong correlation with being successful at EF.
 
-EF describes what they’re looking for [here](https://www.joinef.com/what-does-ef-look-for/?mn=1). At the same time many of these terms seem rather vague. After all, everyone says they want ‘out-of-the-box’ thinking (whatever that means 🤷 ), and EF’s framework does not challenge convention in many ways. EF is set up on a rigid paradigm that seems optimised for reducing bad companies, at the cost of sometimes foregoing truly great companies. This is natural, every heuristic has to balance false negatives and false positives.
+EF describes what they’re looking for [here](https://web.archive.org/web/20230322002748/https://www.joinef.com/what-does-ef-look-for/). At the same time many of these terms seem rather vague. After all, everyone says they want ‘out-of-the-box’ thinking (whatever that means 🤷 ), and EF’s framework does not challenge convention in many ways. EF is set up on a rigid paradigm that seems optimised for reducing bad companies, at the cost of sometimes foregoing truly great companies. This is natural, every heuristic has to balance false negatives and false positives.
 
 So let me go through the ones that I noticed at EF:
 

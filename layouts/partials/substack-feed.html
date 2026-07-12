@@ -1,51 +1,38 @@
-<div class="substack-feed" id="substack-feed">
-  <p class="substack-feed-fallback">
-    <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">
-      Read the latest on Substack →
-    </a>
+{{- /* Substack feed, fetched at BUILD time from the public RSS (no client JS).
+     Freshness comes from the daily scheduled rebuild in .github/workflows/deploy.yml.
+     On fetch failure the build still succeeds and renders the fallback link. */}}
+{{- $items := slice }}
+{{- with try (resources.GetRemote "https://kkonrad.substack.com/feed") }}
+  {{- with .Err }}
+    {{- warnf "substack-feed: fetch failed: %s" . }}
+  {{- else with .Value }}
+    {{- $rss := transform.Unmarshal .Content }}
+    {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
+  {{- else }}
+    {{- warnf "substack-feed: no response from Substack RSS" }}
+  {{- end }}
+{{- end }}
+<div class="substack-feed">
+{{- if $items }}
+  {{- range first 8 $items }}
+  <article class="substack-item">
+    <h3 class="substack-item-title">
+      <a href="{{ .link }}" target="_blank" rel="noopener">{{ .title }}</a>
+    </h3>
+    {{- with .pubDate }}
+    <div class="substack-item-meta">{{ dateFormat "January 2, 2006" (time .) }}</div>
+    {{- end }}
+    {{- with .description }}
+    <div class="substack-item-snippet">{{ . | plainify | htmlUnescape | truncate 180 }}</div>
+    {{- end }}
+  </article>
+  {{- end }}
+  <p class="substack-feed-more">
+    <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">All posts on Substack →</a>
   </p>
+{{- else }}
+  <p class="substack-feed-fallback">
+    <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">Read the latest on Substack →</a>
+  </p>
+{{- end }}
 </div>
-<script>
-(function () {
-  var container = document.getElementById('substack-feed');
-  if (!container || !window.fetch) return;
-  var url = 'https://script.google.com/macros/s/AKfycbzAARQMtIYZBdL-fAbio7Q5BsYb5ToiwuStw7MDKWmIbyaSfcaTT2ASifdINXKq-NX9/exec';
-
-  fetch(url, { redirect: 'follow' })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var items = (data && data.items) || [];
-      if (!items.length) return;
-      var frag = document.createDocumentFragment();
-      items.forEach(function (item) {
-        var article = document.createElement('article');
-        article.className = 'substack-item';
-
-        var h3 = document.createElement('h3');
-        h3.className = 'substack-item-title';
-        var a = document.createElement('a');
-        a.href = item.link || '#';
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.textContent = item.title || '';
-        h3.appendChild(a);
-        article.appendChild(h3);
-
-        var meta = document.createElement('div');
-        meta.className = 'substack-item-meta';
-        meta.textContent = item.date || '';
-        article.appendChild(meta);
-
-        var snippet = document.createElement('div');
-        snippet.className = 'substack-item-snippet';
-        snippet.textContent = (item.snippet || '') + '…';
-        article.appendChild(snippet);
-
-        frag.appendChild(article);
-      });
-      container.innerHTML = '';
-      container.appendChild(frag);
-    })
-    .catch(function () { /* keep fallback link */ });
-})();
-</script>

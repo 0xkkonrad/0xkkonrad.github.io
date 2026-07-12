@@ -44,6 +44,13 @@ enableEmoji = true
 
   profileImage = "pfp.jpg"
 
+  # default social-share card (og:image / twitter:image) for every page
+  images = ["og-card.png"]
+
+  # analytics: create a (free) account at goatcounter.com, then uncomment —
+  # the script tag in layouts/partials/extend_head.html renders only when set
+  # goatcounter = "kkonrad"
+
   [params.homeInfoParams]
     Title = "Hey there!"
     Subtitle = "I'm Konrad, cofounder of [Peanut](https://peanut.me) — a global cash app."
@@ -52,9 +59,9 @@ Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [twitter](http
 
 I also (co-)founded:
 - 2020 — [Let's Phi](https://letsphi.com/) — a community of academic philosophers with non-academic careers (1.8k members)
-- 2020 — [Knit](http://knitvideo.com/) — a failed virtual events B2B SaaS (10k+ users, with [Orest](https://tarasiuk.me/about-orest))
-- 2016 — [Open Blues](http://www.openblues.pl/) — a blues dance festival (with Isabella Larsen)
-- 2016 — [Radowid](http://radowid.com/) — a failed luxury silk brand
+- 2020 — [Knit](https://web.archive.org/web/20240809081019/https://www.knitvideo.com/) — a failed virtual events B2B SaaS (10k+ users, with [Orest](https://tarasiuk.me/about-orest))
+- 2016 — [Open Blues](https://www.openblues.pl/) — a blues dance festival (with Isabella Larsen)
+- 2016 — [Radowid](https://web.archive.org/web/20250805082053/http://www.radowid.com/) — a failed luxury silk brand
 
 """
 

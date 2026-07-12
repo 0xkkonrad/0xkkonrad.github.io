@@ -2,5 +2,5 @@
 title: "Search"
 layout: "search"
 summary: "search"
-placeholder: "Search articles, talks, blues..."
+placeholder: "Search articles and talks..."
 ---

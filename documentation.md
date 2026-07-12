@@ -2,7 +2,7 @@
 
 A map of how the PaperMod theme handles styling on this site, so future customization (fonts, colors, spacing) is grounded in the actual system rather than guesswork.
 
-The project currently has **no `assets/` directory at the repo root**, meaning no overrides are in place — the theme runs entirely from defaults.
+Overrides live in `assets/css/extended/custom.css` (self-hosted Bitter @font-face, dark palette, feed/selected-writing styles) — appended after the theme bundle, so equal-specificity selectors win.
 
 ---
 
