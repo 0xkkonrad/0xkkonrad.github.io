@@ -12,3 +12,6 @@ Thumbs.db
 # Local-only
 *.log
 .claude/
+
+# CI-fetched Substack feed snapshot (deploy.yml)
+assets/substack.rss.xml

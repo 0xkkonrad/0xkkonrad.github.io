@@ -2,14 +2,23 @@
      Freshness comes from the daily scheduled rebuild in .github/workflows/deploy.yml.
      On fetch failure the build still succeeds and renders the fallback link. */}}
 {{- $items := slice }}
-{{- with try (resources.GetRemote "https://kkonrad.substack.com/feed") }}
-  {{- with .Err }}
-    {{- warnf "substack-feed: fetch failed: %s" . }}
-  {{- else with .Value }}
-    {{- $rss := transform.Unmarshal .Content }}
-    {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
-  {{- else }}
-    {{- warnf "substack-feed: no response from Substack RSS" }}
+{{- /* Prefer the feed snapshot the CI workflow curls into assets/ (Substack's
+     Cloudflare 403s Hugo's own fetch from Actions IPs); fall back to a direct
+     fetch for local dev. */}}
+{{- with resources.Get "substack.rss.xml" }}
+  {{- $rss := transform.Unmarshal .Content }}
+  {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
+{{- else }}
+  {{- $opts := dict "headers" (dict "User-Agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36") }}
+  {{- with try (resources.GetRemote "https://kkonrad.substack.com/feed" $opts) }}
+    {{- with .Err }}
+      {{- warnf "substack-feed: fetch failed: %s" . }}
+    {{- else with .Value }}
+      {{- $rss := transform.Unmarshal .Content }}
+      {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
+    {{- else }}
+      {{- warnf "substack-feed: no response from Substack RSS" }}
+    {{- end }}
   {{- end }}
 {{- end }}
 <div class="substack-feed">
