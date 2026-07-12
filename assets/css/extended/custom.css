@@ -121,3 +121,10 @@ body {
 }
 .external-mark { color: var(--secondary); font-size: 0.8em; }
 .archive-month-header a { color: inherit; }
+
+/* home "Latest on Substack" reuses the selected-writing box; strip the feed's own frame */
+.latest-substack .substack-feed {
+    border: none;
+    padding: 0;
+    margin: 0;
+}

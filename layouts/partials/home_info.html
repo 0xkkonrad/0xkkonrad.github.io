@@ -29,10 +29,14 @@
                 {{- end }}
             </ul>
             <p class="selected-writing-more">
-                <a href="{{ "writing" | relURL }}">All writing →</a> · <a href="https://kkonrad.substack.com/" target="_blank" rel="noopener">Substack →</a>
+                <a href="{{ "writing" | relURL }}">All writing →</a>
             </p>
         </div>
         {{- end }}
+        <div class="selected-writing latest-substack">
+            <h2 class="selected-writing-title">Latest on Substack</h2>
+            {{ partial "substack-feed.html" (dict "limit" 1) }}
+        </div>
     </div>
     <footer class="entry-footer">
         {{ partial "social_icons.html" (dict "align" site.Params.homeInfoParams.AlignSocialIconsTo) }}

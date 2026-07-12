@@ -37,6 +37,7 @@ enableEmoji = true
   TocOpen = false
   disableSpecial1stPost = true
   disableScrollToTop = false
+  hideFooter = true
   hidemeta = false
   hideSummary = false
   comments = false

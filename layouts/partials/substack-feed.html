@@ -5,12 +5,15 @@
         (Google IPs, not blocked); fixed at 5 items
      3. direct RSS fetch          — works from residential IPs, i.e. local dev
      If all fail the build still succeeds and renders a plain Substack link.
-     Freshness comes from the daily cron in .github/workflows/deploy.yml. */}}
+     Freshness comes from the daily cron in .github/workflows/deploy.yml.
+     Call with a page context (default 8 items) or (dict "limit" N). */}}
+{{- $limit := 8 }}
+{{- if reflect.IsMap . }}{{ with .limit }}{{ $limit = . }}{{ end }}{{ end }}
 {{- $posts := slice }}
 
 {{- with resources.Get "substack.rss.xml" }}
   {{- $rss := transform.Unmarshal .Content }}
-  {{- range first 8 ($rss.channel.item | default slice) }}
+  {{- range first $limit ($rss.channel.item | default slice) }}
     {{- $posts = $posts | append (dict
         "title" .title
         "link" .link
@@ -22,7 +25,7 @@
 {{- if not $posts }}
   {{- with resources.Get "substack.json" }}
     {{- $json := transform.Unmarshal .Content }}
-    {{- range first 8 ($json.items | default slice) }}
+    {{- range first $limit ($json.items | default slice) }}
       {{- $posts = $posts | append (dict
           "title" .title
           "link" .link
@@ -39,7 +42,7 @@
       {{- warnf "substack-feed: fetch failed: %s" . }}
     {{- else with .Value }}
       {{- $rss := transform.Unmarshal .Content }}
-      {{- range first 8 ($rss.channel.item | default slice) }}
+      {{- range first $limit ($rss.channel.item | default slice) }}
         {{- $posts = $posts | append (dict
             "title" .title
             "link" .link
