@@ -1,38 +1,69 @@
-{{- /* Substack feed, fetched at BUILD time from the public RSS (no client JS).
-     Freshness comes from the daily scheduled rebuild in .github/workflows/deploy.yml.
-     On fetch failure the build still succeeds and renders the fallback link. */}}
-{{- $items := slice }}
-{{- /* Prefer the feed snapshot the CI workflow curls into assets/ (Substack's
-     Cloudflare 403s Hugo's own fetch from Actions IPs); fall back to a direct
-     fetch for local dev. */}}
+{{- /* Substack feed, resolved at BUILD time (no client JS). Sources, in order:
+     1. assets/substack.rss.xml  — CI tries to curl the RSS (usually 403 from
+        Actions IPs, Substack's Cloudflare blocks datacenter ranges)
+     2. assets/substack.json     — CI falls back to the Apps Script proxy
+        (Google IPs, not blocked); fixed at 5 items
+     3. direct RSS fetch          — works from residential IPs, i.e. local dev
+     If all fail the build still succeeds and renders a plain Substack link.
+     Freshness comes from the daily cron in .github/workflows/deploy.yml. */}}
+{{- $posts := slice }}
+
 {{- with resources.Get "substack.rss.xml" }}
   {{- $rss := transform.Unmarshal .Content }}
-  {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
-{{- else }}
+  {{- range first 8 ($rss.channel.item | default slice) }}
+    {{- $posts = $posts | append (dict
+        "title" .title
+        "link" .link
+        "date" (dateFormat "January 2, 2006" (time .pubDate))
+        "snippet" (.description | plainify | htmlUnescape | truncate 180)) }}
+  {{- end }}
+{{- end }}
+
+{{- if not $posts }}
+  {{- with resources.Get "substack.json" }}
+    {{- $json := transform.Unmarshal .Content }}
+    {{- range first 8 ($json.items | default slice) }}
+      {{- $posts = $posts | append (dict
+          "title" .title
+          "link" .link
+          "date" .date
+          "snippet" (printf "%s…" .snippet)) }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if not $posts }}
   {{- $opts := dict "headers" (dict "User-Agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36") }}
   {{- with try (resources.GetRemote "https://kkonrad.substack.com/feed" $opts) }}
     {{- with .Err }}
       {{- warnf "substack-feed: fetch failed: %s" . }}
     {{- else with .Value }}
       {{- $rss := transform.Unmarshal .Content }}
-      {{- with $rss.channel.item }}{{ $items = . }}{{ end }}
+      {{- range first 8 ($rss.channel.item | default slice) }}
+        {{- $posts = $posts | append (dict
+            "title" .title
+            "link" .link
+            "date" (dateFormat "January 2, 2006" (time .pubDate))
+            "snippet" (.description | plainify | htmlUnescape | truncate 180)) }}
+      {{- end }}
     {{- else }}
       {{- warnf "substack-feed: no response from Substack RSS" }}
     {{- end }}
   {{- end }}
 {{- end }}
+
 <div class="substack-feed">
-{{- if $items }}
-  {{- range first 8 $items }}
+{{- if $posts }}
+  {{- range $posts }}
   <article class="substack-item">
     <h3 class="substack-item-title">
       <a href="{{ .link }}" target="_blank" rel="noopener">{{ .title }}</a>
     </h3>
-    {{- with .pubDate }}
-    <div class="substack-item-meta">{{ dateFormat "January 2, 2006" (time .) }}</div>
+    {{- with .date }}
+    <div class="substack-item-meta">{{ . }}</div>
     {{- end }}
-    {{- with .description }}
-    <div class="substack-item-snippet">{{ . | plainify | htmlUnescape | truncate 180 }}</div>
+    {{- with .snippet }}
+    <div class="substack-item-snippet">{{ . }}</div>
     {{- end }}
   </article>
   {{- end }}

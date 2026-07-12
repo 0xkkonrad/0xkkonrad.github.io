@@ -15,3 +15,4 @@ Thumbs.db
 
 # CI-fetched Substack feed snapshot (deploy.yml)
 assets/substack.rss.xml
+assets/substack.json
