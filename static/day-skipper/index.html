@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#141519" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f0eee7" media="(prefers-color-scheme: light)">
+<!-- One tag, set from JS: the app's own light/dark/auto toggle has to win over
+     the system preference here too, or the browser bar and the page disagree. -->
+<meta name="theme-color" id="theme-color" content="#f0eee7">
 <meta name="description" content="RYA Day Skipper revision — 537 spaced-repetition flashcards with diagrams. Works offline, keeps your progress on your device.">
 <title>RYA Day Skipper — flashcards</title>
 <link rel="manifest" href="manifest.webmanifest">
