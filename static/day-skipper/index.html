@@ -84,6 +84,9 @@
       <p class="fineprint">
         Revision material, not a substitute for the course, the current almanac
         or an up-to-date chart. Progress is stored on this device only.
+        Video clips by
+        <a href="https://www.tiktok.com/@maritimemaster" target="_blank" rel="noopener noreferrer">Maritime Master</a>,
+        used with a link back to each original.
       </p>
     </main>
   </section>
@@ -118,6 +121,9 @@
             This card has a diagram that has not been saved on this device. Reconnect,
             or use Progress → Offline → Save all diagrams offline.
           </p>
+          <!-- Clips for this card. Filled by renderCardVideo(); the player
+               expands where the thumbnail sits, so the answer stays above it. -->
+          <div class="vids" id="card-video" hidden></div>
         </div>
       </div>
     </main>
@@ -147,6 +153,12 @@
         <h2 id="done-title">Session finished</h2>
         <p class="done-line" id="done-line"></p>
         <div class="done-stats" id="done-stats"></div>
+
+        <!-- The reel: clips for the cards you graded Again or Hard. -->
+        <div class="reel" id="done-reel" hidden>
+          <p class="reel-h" id="reel-h"></p>
+          <div class="reel-strip" id="reel-strip"></div>
+        </div>
         <button class="primary big" id="done-home">Back to sections</button>
         <button class="ghost" id="done-more" hidden>Keep going</button>
       </div>

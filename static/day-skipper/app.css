@@ -462,6 +462,60 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .keyhint { display: none; margin: 12px 0 0; text-align: center; font-size: .72rem; color: var(--muted); text-transform: lowercase; }
 @media (hover: hover) and (pointer: fine) { .keyhint { display: block; } }
 
+/* ── video ───────────────────────────────────────────────────────── */
+
+.vids { margin: 20px 0 0; }
+.vhead { margin: 0 0 8px; font-size: .74rem; letter-spacing: .08em;
+  text-transform: lowercase; color: var(--muted); }
+.vrow { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* The poster is the clip's own first second, not a 54th image asset —
+   preload="metadata" costs tens of KB, not the whole video. */
+.vthumb {
+  position: relative; flex: 0 0 auto; width: 108px; padding: 0;
+  border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
+  background: #000; overflow: hidden; box-shadow: var(--sh-sm);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.vthumb:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--stroke); }
+.vthumb video { display: block; width: 100%; height: 150px; object-fit: cover; pointer-events: none; }
+.vthumb .vplay {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff; font-size: 1.5rem; text-shadow: 0 1px 6px rgba(0, 0, 0, .7);
+}
+.vthumb .vlen {
+  position: absolute; left: 5px; bottom: 5px;
+  background: var(--flag); color: #121214;
+  border: 1.5px solid #121214; border-radius: 5px;
+  font-size: .6rem; padding: 0 5px; font-variant-numeric: tabular-nums;
+}
+
+/* Width follows the video rather than the column: these are 9:16 clips, and a
+   full-width box around one is mostly black bars. */
+.vplayer {
+  display: inline-block; max-width: 100%;
+  border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
+  overflow: hidden; background: #000; box-shadow: var(--sh-sm);
+}
+/* Capped so the grade buttons never get pushed off a small screen — the whole
+   point of playing in the card flow is that you can still answer. */
+/* Height leads, width follows the aspect: an intrinsically 432px-wide file in a
+   max-content box still leaves a black strip beside a portrait clip. */
+.vplayer video { display: block; height: 46vh; width: auto; max-width: 100%; background: #000; }
+.vbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 4px 2px 0; font-size: .7rem; color: var(--muted);
+}
+.vbar a { color: var(--accent); text-underline-offset: 3px; }
+.vbar .link-btn { padding: 6px 0; min-height: 32px; font-size: .7rem; }
+.vcap { margin: 8px 0 0; font-size: .74rem; line-height: 1.5; color: var(--muted); }
+
+.reel { margin: -8px 0 22px; }
+.reel-h { margin: 0 0 8px; font-size: .76rem; color: var(--muted); text-align: left; }
+.reel-strip { overflow-x: auto; padding-bottom: 4px; }
+.reel .vrow { flex-wrap: nowrap; }
+.reel .vplayer { min-width: min(100%, 240px); }
+
 /* ── done ────────────────────────────────────────────────────────── */
 
 .done-card { padding: 8px 0; text-align: center; max-width: 340px; width: 100%; }

@@ -478,6 +478,85 @@ function counts(sectionKey) {
   return { due, fresh, learning, seen, mature };
 }
 
+/* ─────────────────────────── video ─────────────────────────── */
+
+/* 54 Maritime Master clips, attached to the 58 cards they plainly answer.
+ * They are hosted with the app but never precached: the shell is 2.6 MB and
+ * has to stay openable on no signal, so a clip is only fetched when someone
+ * asks for it. Every failure mode here ends in "no video on this card", never
+ * in a broken card. */
+let VIDEOS = { clips: {}, cards: {}, credit: null };
+
+const clipsFor = (cardId) => (VIDEOS.cards[cardId] || [])
+  .map((c) => VIDEOS.clips[c]).filter(Boolean);
+
+function fmtClock(sec) {
+  const s = Math.max(0, Math.round(n(sec)));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/* Poster frames come from the clip itself at t=1s rather than 54 extra image
+ * files: preload="metadata" fetches a few tens of KB, not the video. */
+function thumbHtml(clip, label) {
+  return `<button class="vthumb" data-clip="${escapeHtml(clip.f)}"
+      aria-label="Play ${escapeHtml(label || clip.t)} — ${fmtClock(clip.d)}">
+    <video src="video/${escapeHtml(clip.f)}#t=1" muted playsinline preload="metadata"></video>
+    <span class="vplay" aria-hidden="true">▶</span>
+    <span class="vlen">${fmtClock(clip.d)}</span>
+  </button>`;
+}
+
+function playerHtml(clip) {
+  const by = VIDEOS.credit ? VIDEOS.credit.name : 'Maritime Master';
+  // The credit row lives outside the black box so the box wraps the picture
+  // exactly — inside, its own text was setting the player's width.
+  return `<div class="vplayer">
+    <video src="video/${escapeHtml(clip.f)}" playsinline controls autoplay preload="auto"></video>
+  </div>
+  <div class="vbar">
+    <span class="vby">${escapeHtml(by)}${clip.u
+      ? ` · <a href="${escapeHtml(clip.u)}" target="_blank" rel="noopener noreferrer">source</a>` : ''}</span>
+    <button class="link-btn" data-collapse type="button">close</button>
+  </div>
+  <p class="vcap">${escapeHtml(clip.t)}</p>`;
+}
+
+/** The clips for the card on screen, under the answer. */
+function renderCardVideo(card) {
+  const host = $('#card-video');
+  const clips = clipsFor(card.i);
+  host.hidden = !clips.length;
+  if (!clips.length) { host.innerHTML = ''; return; }
+  // data-card is what "close" uses to rebuild the thumbnails; without it the
+  // player collapsed into an empty row.
+  host.innerHTML = `<p class="vhead">${clips.length === 1 ? 'A clip on this' : 'Clips on this'}</p>
+    <div class="vrow" data-card="${escapeHtml(card.i)}">${clips.map((c) => thumbHtml(c)).join('')}</div>`;
+}
+
+/* One handler for both screens: a thumbnail swaps itself for a player, and the
+ * player collapses back to the thumbnail. Only one plays at a time. */
+function wireVideo(rootSel) {
+  $(rootSel).addEventListener('click', (e) => {
+    const thumb = e.target.closest('.vthumb');
+    if (thumb) {
+      const clip = Object.values(VIDEOS.clips).find((c) => c.f === thumb.dataset.clip);
+      if (!clip) return;
+      $$('.vplayer video').forEach((v) => v.pause());
+      const row = thumb.closest('.vrow');
+      row.dataset.open = thumb.dataset.clip;
+      row.innerHTML = playerHtml(clip);
+      return;
+    }
+    if (e.target.closest('[data-collapse]')) {
+      const row = e.target.closest('.vrow');
+      const cardId = row.dataset.card;
+      const clips = cardId ? clipsFor(cardId) : reelClips();
+      row.removeAttribute('data-open');
+      row.innerHTML = clips.map((c) => thumbHtml(c)).join('');
+    }
+  });
+}
+
 /* ─────────────────────── the ship's log ─────────────────────── */
 
 /* Fourteen things worth noticing. They are all side effects of revising rather
@@ -683,6 +762,7 @@ function buildSession(sectionKey, opts) {
     good: 0,
     startedNew: fresh.length,
     revealed: false,
+    reel: [],                   // clips for the cards graded Again or Hard
     ahead: !!opts.ahead,
   };
 }
@@ -892,6 +972,7 @@ function startSession(sectionKey, opts) {
 }
 
 function leaveStudy(fromHistory) {
+  $$('#done-reel video, #card-video video').forEach((v) => v.pause());
   session = null;
   if (current !== 'home') go('home');
   if (!fromHistory && stops[stops.length - 1] === 'study') history.back();
@@ -949,6 +1030,10 @@ function showCard() {
   }
 
   $('#answer-wrap').hidden = true;
+  // A player left running would keep talking over the next question.
+  $$('#card-video video').forEach((v) => v.pause());
+  $('#card-video').hidden = true;
+  $('#card-video').innerHTML = '';
   $('#reveal-btn').hidden = false;
   $('#grade-row').hidden = true;
   $('#grade-ask').hidden = true;
@@ -974,6 +1059,7 @@ function reveal() {
   $('#grade-row').hidden = false;
   $('#grade-ask').hidden = false;
   $('#card-scroll').classList.add('shown');
+  renderCardVideo(card);
   // The reveal button was the focused element and has just been hidden, which
   // drops focus to <body>. Put it on the answer so it is read out and so Tab
   // continues from the right place.
@@ -1006,6 +1092,13 @@ function answer(g) {
   });
   if (undoStack.length > 25) undoStack.shift();
 
+  // Again and Hard are the app's own evidence of what you have not learned —
+  // exactly the cards worth two minutes of video at the end.
+  if (g <= 2) {
+    for (const c of VIDEOS.cards[id] || []) {
+      if (!session.reel.includes(c)) session.reel.push(c);
+    }
+  }
   const outcome = grade(id, g);
   // A clean run is consecutive cards without an Again, inside one session.
   if (g === 1) { session.again++; session.clean = 0; } else {
@@ -1069,10 +1162,31 @@ function finish() {
       .map(([dx, dy], i) => `<i class="spark" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${(i * 0.07).toFixed(2)}s"></i>`)
       .join('');
 
+  renderReel(session.reel.slice(0, 5));
   checkAchievements(session);
   session = null;
   go('done');
   $('#done-home').focus({ preventScroll: true });
+}
+
+/* The reel is built from the cards you graded Again or Hard in the session
+ * just finished — the material you have just proved you do not know. */
+function reelClips() {
+  return (lastReel || []).map((c) => VIDEOS.clips[c]).filter(Boolean);
+}
+let lastReel = [];
+
+function renderReel(ids) {
+  lastReel = ids;
+  const wrap = $('#done-reel');
+  const clips = reelClips();
+  wrap.hidden = !clips.length;
+  if (!clips.length) return;
+  const secs = clips.reduce((t, c) => t + n(c.d), 0);
+  $('#reel-h').textContent = clips.length === 1
+    ? `A clip on one you found hard — ${fmtClock(secs)}`
+    : `${clips.length} clips on the ones you found hard — ${fmtClock(secs)}`;
+  $('#reel-strip').innerHTML = `<div class="vrow">${clips.map((c) => thumbHtml(c)).join('')}</div>`;
 }
 
 function nextDueLine() {
@@ -1489,6 +1603,8 @@ function wire() {
     const c = currentCard();
     if (c && c.m) openLightbox(c);
   });
+  wireVideo('#card-video');
+  wireVideo('#done-reel');
   $('#unlock').addEventListener('click', dismissUnlock);
   $('#done-home').addEventListener('click', () => leaveStudy(false));
   $('#done-more').addEventListener('click', () => startSession(null, {}));
@@ -1739,6 +1855,13 @@ async function boot() {
 
   // drop history for cards that no longer exist
   for (const id of Object.keys(state.recs)) if (!byId.has(id)) delete state.recs[id];
+
+  // Optional, and deliberately not awaited with the deck: no video map, or a
+  // stale one, must never stop the cards loading.
+  fetch('videos.json', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((v) => { if (v && v.clips && v.cards) VIDEOS = v; })
+    .catch(() => {});
 
   $('#search').placeholder = `Search ${DECK.cards.length} cards…`;
   wire();

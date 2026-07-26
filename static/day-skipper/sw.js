@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'rya-ds-a3ef68c20e';
+const V = 'rya-ds-52fb1ec6ca';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
@@ -38,6 +38,7 @@ const SHELL = [
   'app.css',
   'app.js',
   'cards.json',
+  'videos.json',
   'manifest.webmanifest',
   'fonts/dm-mono-400.woff2',
   'fonts/dm-mono-500.woff2',
@@ -94,8 +95,9 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // Card data: network first so a rebuilt deck arrives, cache as the fallback.
-  if (url.pathname.endsWith('cards.json')) {
+  // Card data and the clip map: network first so a rebuilt deck or a newly
+  // attached clip arrives, cache as the fallback.
+  if (url.pathname.endsWith('cards.json') || url.pathname.endsWith('videos.json')) {
     e.respondWith(
       fetch(req).then((r) => {
         // Only a real deck gets cached. One 404 during a deploy used to become
@@ -132,6 +134,10 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+
+  // Video is never cached. 53 MB of clips would evict the shell that makes the
+  // app work offline in the first place, to store something you watch once.
+  if (url.pathname.includes('/video/')) return;
 
   const isShell = SHELL_FILES.some((s) => url.pathname.endsWith('/' + s));
   const isImage = url.pathname.includes('/img/') || /\/icon-[\w-]+\.png$/.test(url.pathname);
