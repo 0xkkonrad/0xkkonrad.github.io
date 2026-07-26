@@ -22,6 +22,13 @@ const AHEAD_BATCH = 20;
 // other JSON someone happens to pick.
 const EXPORT_APP = 'rya-day-skipper';
 const EXPORT_FORMAT = 1;
+// The exam this deck was built for. A fresh install starts here rather than
+// asking; it is changed in Progress, and clearing it goes back to plain spacing.
+const EXAM_DEFAULT = '2026-08-12';
+// A <input type="date"> fires `change` on every keystroke in the year segment,
+// so typing 2026 walks through 0002, 0020 and 0202 on its way. Anything outside
+// this window is someone mid-keystroke, not a date they mean.
+const EXAM_MIN_YEAR = 2020, EXAM_MAX_YEAR = 2040;
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -115,7 +122,7 @@ function freshState() {
     // Light by default rather than following the system: the paper, the ink
     // outlines and the hard shadows are the design, and the derived dark set is
     // the fallback for people who go looking for it.
-    settings: { newPerDay: 20, maxRev: 120, shuffle: true, theme: 'light', examDate: '', examSkipped: false },
+    settings: { newPerDay: 20, maxRev: 120, shuffle: true, theme: 'light', examDate: EXAM_DEFAULT, examSkipped: false },
   };
 }
 
@@ -146,6 +153,11 @@ function sanitise(raw) {
   s.settings.shuffle = !!s.settings.shuffle;
   s.settings.examSkipped = !!s.settings.examSkipped;
   if (!['auto', 'light', 'dark'].includes(s.settings.theme)) s.settings.theme = 'auto';
+  // The default exam date belongs to a fresh install only. A restored backup
+  // that never had one must not silently inherit it — that would compress every
+  // interval on someone else's deck the moment they imported it.
+  const rawExam = isPlainObject(raw.settings) ? raw.settings.examDate : undefined;
+  if (typeof rawExam !== 'string') s.settings.examDate = '';
   if (typeof s.settings.examDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.settings.examDate)) {
     s.settings.examDate = '';
   }
@@ -1566,6 +1578,22 @@ function toast(msg) {
   toastTimer = setTimeout(() => { t.classList.add('away'); }, 3400);
 }
 
+/** Is this a date a person could have meant, or a year still being typed? */
+function plausibleExam(v) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const y = Number(v.slice(0, 4));
+  return y >= EXAM_MIN_YEAR && y <= EXAM_MAX_YEAR;
+}
+
+/* The same window, told to the native picker, so its own arrows and its
+ * validation agree with what the app will accept. */
+function boundExamInputs() {
+  for (const el of [$('#home-exam'), $('#set-exam')]) {
+    el.min = EXAM_MIN_YEAR + '-01-01';
+    el.max = EXAM_MAX_YEAR + '-12-31';
+  }
+}
+
 function applyTheme() {
   const t = state.settings.theme;
   if (t === 'auto') document.documentElement.removeAttribute('data-theme');
@@ -1603,6 +1631,7 @@ function wire() {
     const c = currentCard();
     if (c && c.m) openLightbox(c);
   });
+  boundExamInputs();
   wireVideo('#card-video');
   wireVideo('#done-reel');
   $('#unlock').addEventListener('click', dismissUnlock);
@@ -1646,6 +1675,9 @@ function wire() {
     save();
   });
   const setExamDate = (value) => {
+    // Half-typed years arrive here as 0002-08-12. Ignore them: the change event
+    // fires again with the real year a keystroke later.
+    if (value && !plausibleExam(value)) return false;
     state.settings.examDate = value || '';
     if (value) state.settings.examSkipped = false;
     // Existing cards may already be scheduled past the new date; pull them in.
@@ -1670,12 +1702,21 @@ function wire() {
     $('#home-exam-parsed').textContent = value ? longDate(value) : '';
     if (current === 'stats') renderStats(); else renderHome();
     if (moved) toast(`${moved} cards moved earlier so you see them before your exam.`);
+    return true;
   };
   $('#set-exam').addEventListener('change', (e) => setExamDate(e.target.value));
   $('#home-exam').addEventListener('change', (e) => {
-    setExamDate(e.target.value);
-    if (e.target.value) toast('Set. The daily number now fits your date.');
+    if (setExamDate(e.target.value) && e.target.value) {
+      toast('Set. The daily number now fits your date.');
+    }
   });
+  // Leaving the field with a half-typed year in it would show a date the app is
+  // not using. Put the stored one back.
+  for (const el of [$('#home-exam'), $('#set-exam')]) {
+    el.addEventListener('blur', () => {
+      if (el.value && !plausibleExam(el.value)) el.value = state.settings.examDate || '';
+    });
+  }
   $('#skip-exam').addEventListener('click', () => {
     state.settings.examSkipped = true;
     save();
