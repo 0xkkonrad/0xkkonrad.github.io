@@ -975,9 +975,11 @@ function renderInstall() {
   }
   card.hidden = false;
   $('#install-btn').hidden = !MuninInstall.event;
+  // Why it is worth doing, not what it technically is. The mechanics only earn
+  // their place on iOS, where the browser cannot do it for you.
   $('#install-note').textContent = MuninInstall.event
-    ? 'It opens like an app, with no browser bar, and the cards work with no signal at all.'
-    : 'Tap the share button, then “Add to Home Screen”. It then opens like an app, and the cards work with no signal at all.';
+    ? 'Spacing only pays if you turn up. One tap from your home screen, and the cards work with no signal.'
+    : 'Spacing only pays if you turn up. Tap the share button, then “Add to Home Screen”, and it is one tap from then on.';
 }
 
 function renderHome() {

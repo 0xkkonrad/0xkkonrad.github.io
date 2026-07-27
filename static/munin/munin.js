@@ -318,10 +318,10 @@ async function renderShelf(asOverlay) {
       <button type="button" class="shelf-tile byo" data-byo><span>+ your own deck</span></button>
     </div>
     <div class="shelf-install" id="shelf-install" hidden>
-      <b>keep munin on your home screen</b>
-      <p>it opens like an app, with no browser bar, and the cards work with no signal at all.</p>
+      <b>learn every day</b>
+      <p>spacing only pays if you turn up. one tap from your home screen, and the cards work with no signal.</p>
       <ol class="shelf-install-steps"></ol>
-      <button type="button" id="shelf-install-btn" hidden>add to home screen</button>
+      <button type="button" id="shelf-install-btn" hidden>install</button>
     </div>
     <p class="shelf-note">${asOverlay ? 'tap outside a tile to go back' : 'pick a course — it opens straight here next time'}</p>
   </div>`;
