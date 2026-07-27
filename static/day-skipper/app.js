@@ -460,6 +460,17 @@ function isDue(id, now) {
   return !!r && r.st === 'r' && r.due <= now;
 }
 
+/** The deck walked in theme order: [group, [section, …]] per theme.
+ *
+ * Home, Browse and Progress all list the same twenty-four sections, and before
+ * this they listed them three times as one flat column. An app that groups the
+ * syllabus on one screen and not on the next is telling you two different
+ * things about the syllabus. */
+function byGroup() {
+  return [...groupOf.values()]
+    .map((g) => [g, g.s.map((k) => sectionOf.get(k)).filter(Boolean)]);
+}
+
 function counts(sectionKey) {
   const now = Date.now();
   const test = scopeTest(sectionKey);
@@ -1070,30 +1081,50 @@ function renderHome() {
 
   const list = $('#section-list');
   list.innerHTML = '';
-  for (const s of DECK.sections) {
-    const sc = counts(s.k);
-    const pending = Math.min(sc.due, 999) + sc.learning;
-    const pct = Math.round(((sc.mature + (sc.seen - sc.learning - sc.mature) * 0.5) / s.n) * 100);
-    // The meta line says what the number means. A bare badge on an untouched
-    // section reads as "12 due" when it means "12 you have never seen".
-    let meta;
-    if (pending) meta = `${pending} to review · ${s.n} cards`;
-    else if (sc.seen === 0) meta = `${s.n} cards · not started`;
-    else if (sc.fresh) meta = `${sc.fresh} new left · ${s.n} cards`;
-    else meta = `all ${s.n} scheduled · ${pct}% known well`;
+  for (const [g, inside] of byGroup()) {
+    // counts() walks the whole deck, so it is called once per section and the
+    // theme's total is added up from those rather than costing a second pass.
+    const rows = inside.map((s) => {
+      const sc = counts(s.k);
+      return { s, sc, pending: Math.min(sc.due, 999) + sc.learning };
+    });
+    if (g.t) {
+      // The heading says what is waiting inside the theme, because the question
+      // Home answers is "where do I go next" and the answer used to be
+      // twenty-four rows of column you had to read to work it out.
+      const waiting = rows.reduce((t, r) => t + r.pending, 0);
+      const h = document.createElement('h3');
+      h.className = 'h-part';
+      h.innerHTML = `<span>${escapeHtml(g.t)}</span>`
+        + (waiting ? `<span class="h-part-n">${n(waiting)} to review</span>` : '');
+      list.appendChild(h);
+    }
+    const ul = document.createElement('ul');
+    ul.className = 'sections';
+    for (const { s, sc, pending } of rows) {
+      const pct = Math.round(((sc.mature + (sc.seen - sc.learning - sc.mature) * 0.5) / s.n) * 100);
+      // The meta line says what the number means. A bare badge on an untouched
+      // section reads as "12 due" when it means "12 you have never seen".
+      let meta;
+      if (pending) meta = `${pending} to review · ${s.n} cards`;
+      else if (sc.seen === 0) meta = `${s.n} cards · not started`;
+      else if (sc.fresh) meta = `${sc.fresh} new left · ${s.n} cards`;
+      else meta = `all ${s.n} scheduled · ${pct}% known well`;
 
-    const li = document.createElement('li');
-    const b = document.createElement('button');
-    b.innerHTML = `
-      ${doodle(SECTION_ART[s.k] || 'boat', 'sect-art')}
-      <span class="sect-name">${escapeHtml(s.t)}</span>
-      ${pending ? `<span class="sect-badge">${pending}</span>` : ''}
-      <span class="sect-meta">${meta}</span>
-      ${pct > 0 ? `<span class="sect-meter"><i style="width:${Math.min(100, pct)}%"></i></span>` : ''}`;
-    b.setAttribute('aria-label', `${s.t}. ${meta}. Study this section.`);
-    b.addEventListener('click', () => startSession(s.k));
-    li.appendChild(b);
-    list.appendChild(li);
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.innerHTML = `
+        ${doodle(SECTION_ART[s.k] || 'boat', 'sect-art')}
+        <span class="sect-name">${escapeHtml(s.t)}</span>
+        ${pending ? `<span class="sect-badge">${pending}</span>` : ''}
+        <span class="sect-meta">${meta}</span>
+        ${pct > 0 ? `<span class="sect-meter"><i style="width:${Math.min(100, pct)}%"></i></span>` : ''}`;
+      b.setAttribute('aria-label', `${s.t}. ${meta}. Study this section.`);
+      b.addEventListener('click', () => startSession(s.k));
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+    list.appendChild(ul);
   }
 }
 
@@ -2024,11 +2055,18 @@ function renderStats() {
   $('#forecast').setAttribute('aria-label',
     'Cards due: ' + bins.map((n, i) => `${names[i]} ${n}`).join(', '));
 
-  $('#mastery').innerHTML = DECK.sections.map((s) => {
-    const b = { new: 0, learning: 0, young: 0, mature: 0 };
-    for (const c of DECK.cards) if (c.s === s.k) b[stateOf(c.i)]++;
-    const p = (x) => (x / s.n) * 100;
-    return `<li>
+  // One pass for the whole deck rather than one per section: this used to walk
+  // all 537 cards twenty-four times over to fill twenty-four bars.
+  const bySect = new Map(DECK.sections.map((s) => [s.k, { new: 0, learning: 0, young: 0, mature: 0 }]));
+  for (const c of DECK.cards) {
+    const b = bySect.get(c.s);
+    if (b) b[stateOf(c.i)]++;
+  }
+  $('#mastery').innerHTML = byGroup().map(([g, inside]) => {
+    const rows = inside.map((s) => {
+      const b = bySect.get(s.k);
+      const p = (x) => (x / s.n) * 100;
+      return `<li>
       <span>${escapeHtml(s.t)}</span>
       <span class="m-n">${b.mature} solid · ${b.young + b.learning} seen · ${s.n} total</span>
       <span class="m-bar" role="img" aria-label="${b.mature} known well, ${b.young} bedding in, ${b.learning} learning, ${b.new} not started">
@@ -2036,6 +2074,14 @@ function renderStats() {
         <i class="m-young" style="width:${p(b.young)}%"></i>
         <i class="m-learn" style="width:${p(b.learning)}%"></i>
       </span></li>`;
+    }).join('');
+    // The theme's own share of solid cards, which is the number you would
+    // otherwise be adding up off four bars by eye.
+    const tot = inside.reduce((t, s) => t + s.n, 0);
+    const solid = inside.reduce((t, s) => t + bySect.get(s.k).mature, 0);
+    return (g.t ? `<h3 class="h-part"><span>${escapeHtml(g.t)}</span>`
+      + `<span class="h-part-n">${Math.round((solid / tot) * 100)}% solid</span></h3>` : '')
+      + `<ul class="mastery">${rows}</ul>`;
   }).join('');
 
   $('#set-new').value = state.settings.newPerDay;

@@ -289,6 +289,27 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .h-sect::after { content: ""; flex: 1; height: 0; border-top: 2px dotted var(--line); }
 .h-sect:first-child { margin-top: 8px; }
 
+/* A theme, under a section heading. Sentence case and full weight, because it
+   is a name from the syllabus rather than a label on the app's own furniture —
+   and subordinate to .h-sect by being smaller and quieter, not by shouting
+   less. The same seven names head the Browse index. */
+.h-part {
+  margin: 22px 0 8px; font-size: .82rem; font-weight: 500;
+  display: flex; align-items: baseline; gap: 10px;
+  border-bottom: 2px dotted var(--line); padding-bottom: 7px;
+}
+.h-part > span:first-child { flex: 1; }
+.h-part-n {
+  flex: none; font-size: .72rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#section-list > .h-part:first-child, #mastery > .h-part:first-child { margin-top: 4px; }
+/* The section rows already rule themselves off top and bottom. Under a heading
+   that carries its own dotted rule that is two lines of dots, three pixels
+   apart, which reads as a mistake. */
+.h-part + .sections { border-top: 0; }
+#mastery .mastery { margin-bottom: 4px; }
+
 /* Section rows are separated by a dotted rule, not stacked as individual boxes —
    twenty-four outlined cards in a column is a lot of furniture for a list. */
 .sections { list-style: none; margin: 0; padding: 0; border-top: 2px dotted var(--line); }
