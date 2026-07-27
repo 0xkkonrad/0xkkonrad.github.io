@@ -37,6 +37,42 @@ globalThis.DSSync = {
   turnOff: () => {},
 };
 
+/* The colour theme belongs to Munin, not to a course: the shelf paints before
+ * any course is booted, and a preference stored per course would flip as you
+ * switched between them. One key, read before the first paint. Light is the
+ * default — the app is paper first, and dark is a choice you make. */
+const THEME_ORDER = ['light', 'dark', 'auto'];
+const MuninTheme = {
+  key: 'munin/theme',
+  get() {
+    const t = localStorage.getItem(MuninTheme.key);
+    return THEME_ORDER.includes(t) ? t : 'light';
+  },
+  set(t) {
+    localStorage.setItem(MuninTheme.key, t);
+    MuninTheme.apply();
+  },
+  cycle() {
+    const t = MuninTheme.get();
+    MuninTheme.set(THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length]);
+  },
+  apply() {
+    const t = MuninTheme.get();
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    const dark = t === 'dark'
+      || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    const meta = document.getElementById('theme-color');
+    if (meta) meta.setAttribute('content', dark ? '#141519' : '#f0eee7');
+    // Every glyph on the page — the shelf's and the course header's — says the
+    // same thing, because they are the same setting.
+    for (const g of document.querySelectorAll('[data-theme-glyph]')) {
+      g.textContent = t === 'auto' ? '\u25D0' : t === 'dark' ? '\u263E' : '\u2600';
+    }
+  },
+};
+globalThis.MuninTheme = MuninTheme;
+
 function muninDoodle(name, cls, style) {
   const d = MUNIN_DOODLE[name] || MUNIN_DOODLE.perch;
   return `<svg class="dood ${cls || ''}" viewBox="0 0 32 32" fill="none" stroke="currentColor"
@@ -102,6 +138,7 @@ const SHELF_CSS = `
   .shelf-mark .dood { width: 34px; height: 34px; color: var(--accent); }
   .shelf-mark h1 { font-size: 1.3rem; font-weight: 500; letter-spacing: -.02em;
     margin: 0; text-transform: lowercase; }
+  .shelf-mark .icon-btn { margin-left: auto; }
   .shelf-sub { color: var(--muted); font-size: .84rem; margin: 0 0 22px; }
   .shelf-tiles { display: flex; flex-direction: column; gap: 14px; }
   .shelf-tile { display: flex; align-items: center; gap: 12px; text-align: left;
@@ -166,7 +203,10 @@ async function renderShelf(asOverlay) {
   const el = document.createElement('div');
   el.className = 'shelf on';
   el.innerHTML = `<div class="shelf-inner">
-    <div class="shelf-mark">${muninDoodle('perch')}<h1>munin</h1></div>
+    <div class="shelf-mark">${muninDoodle('perch')}<h1>munin</h1>
+      <button type="button" class="icon-btn" id="shelf-theme" aria-label="Switch colour theme"
+        title="Switch colour theme"><span aria-hidden="true" data-theme-glyph>\u2600</span></button>
+    </div>
     <p class="shelf-sub">a friendly raven who remembers for you</p>
     <div class="shelf-tiles">
       ${metas.map(courseTile).join('')}
@@ -175,6 +215,8 @@ async function renderShelf(asOverlay) {
     <p class="shelf-note">${asOverlay ? 'tap outside a tile to go back' : 'pick a course — it opens straight here next time'}</p>
   </div>`;
   document.body.appendChild(el);
+  el.querySelector('#shelf-theme').addEventListener('click', () => MuninTheme.cycle());
+  MuninTheme.apply();
   if (asOverlay) el.addEventListener('click', (e) => {
     if (!e.target.closest('.shelf-tile')) el.remove();
   });
@@ -210,6 +252,7 @@ function mountShelfButton(c) {
 }
 
 (function main() {
+  MuninTheme.apply();
   // ?course=<id> deep-links a course and becomes the resume target.
   const q = new URLSearchParams(location.search).get('course');
   if (q && MUNIN.courses.includes(q)) localStorage.setItem(MUNIN.lastKey, q);

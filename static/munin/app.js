@@ -80,7 +80,7 @@ function freshState() {
     // Light by default rather than following the system: the paper, the ink
     // outlines and the hard shadows are the design, and the derived dark set is
     // the fallback for people who go looking for it.
-    settings: { newPerDay: 20, maxRev: 120, shuffle: true, theme: 'auto', examDate: EXAM_DEFAULT, examSkipped: false },
+    settings: { newPerDay: 20, maxRev: 120, shuffle: true, examDate: EXAM_DEFAULT, examSkipped: false },
   };
 }
 
@@ -110,7 +110,6 @@ function sanitise(raw) {
   s.settings.maxRev = Math.round(num(s.settings.maxRev, 10, 999, 120));
   s.settings.shuffle = !!s.settings.shuffle;
   s.settings.examSkipped = !!s.settings.examSkipped;
-  if (!['auto', 'light', 'dark'].includes(s.settings.theme)) s.settings.theme = 'auto';
   // The default exam date belongs to a fresh install only. A restored backup
   // that never had one must not silently inherit it — that would compress every
   // interval on someone else's deck the moment they imported it.
@@ -2335,15 +2334,11 @@ function boundExamInputs() {
   }
 }
 
+/* The theme is Munin's, shared by the shelf and every course (see munin.js).
+ * A course cannot hold its own — you would change colour by changing deck. */
 function applyTheme() {
-  const t = state.settings.theme;
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
-  $('#theme-glyph').textContent = t === 'auto' ? '◐' : t === 'dark' ? '☾' : '☀';
-  $('#theme-btn').title = `Colour theme: ${t}`;
-  const dark = t === 'dark'
-    || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  $('#theme-color').setAttribute('content', dark ? '#141519' : '#f0eee7');
+  MuninTheme.apply();
+  $('#theme-btn').title = `Colour theme: ${MuninTheme.get()}`;
 }
 
 /* ─────────────────────────── wiring ─────────────────────────── */
@@ -2384,10 +2379,8 @@ function wire() {
   $('#done-more').addEventListener('click', () => startSession(null, {}));
 
   $('#theme-btn').addEventListener('click', () => {
-    const order = ['auto', 'light', 'dark'];
-    state.settings.theme = order[(order.indexOf(state.settings.theme) + 1) % 3];
+    MuninTheme.cycle();
     applyTheme();
-    save();
   });
 
   /* A changed result set is a different list, so it starts at the top. Without
