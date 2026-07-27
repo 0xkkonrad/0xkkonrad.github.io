@@ -843,9 +843,26 @@ function go(name) {
   });
   if (name === 'home') renderHome();
   if (name === 'stats') renderStats();
-  if (name === 'browse') renderBrowse();
+  // Back to the first page. Coming back to Browse having once pressed Show more
+  // to the end rebuilt all 537 rows, then scrolled to the top past every one.
+  if (name === 'browse') { browseLimit = BROWSE_FIRST; renderBrowse(); }
   const body = $('#s-' + name).querySelector('.body');
   if (body && name !== 'study') body.scrollTop = 0;
+  // "Skip to content" pointed at #main, which was the home screen's <main> and
+  // nobody else's — from every other screen it jumped into a hidden section and
+  // dropped focus on the floor. Aim the link at whatever is on screen rather
+  // than moving the id about: the study screen's body already answers to
+  // #card-scroll, and an element cannot hold two ids.
+  if (body) {
+    // Its own id, not a borrowed "main": two elements answering to the same one
+    // means querySelector picks the first, which is on a screen that is hidden.
+    if (!body.id) body.id = name + '-main';
+    $('.skip').setAttribute('href', '#' + body.id);
+  }
+  // Tapping a tab leaves focus on the tab, which is the last thing in the
+  // document: for a keyboard the next Tab leaves the page entirely. Land on the
+  // heading of the screen that just appeared instead.
+  if (name === 'browse') $('#s-browse h1').focus({ preventScroll: true });
 }
 
 /* ── home ── */
@@ -1335,73 +1352,394 @@ function fmtDays(d) {
 
 /* ── browse ── */
 
-let browseLimit = 40;
+const BROWSE_FIRST = 40;
+const BROWSE_PAGE = 60;
+let browseLimit = BROWSE_FIRST;
 const LEECH_FILTER = '★leech';
+let browseHits = [];        // the whole result set, best matches first
+let browseTerms = [];       // what the rendered rows were marked against
+let browseCountSaid = '';   // last thing written to the status line
+let deckWords = new Set();  // every word the deck uses, for the plural rule
+
+/** Card text reduced to the words a search can match: no tags, no entities, no
+ *  punctuation. Without this, "br" matched 236 cards through their own <br>
+ *  tags, "45 degrees" matched nothing because the deck writes 45&deg;, and
+ *  "man-overboard" found one card where "man overboard" finds ten. */
+function searchable(html) {
+  return plainText(html).toLowerCase()
+    // The deck writes 45&deg;, so a student typing "45 degrees" found nothing.
+    // DEGREE_ALT keeps the highlighter in step with this.
+    .replace(/°/g, ' degrees ')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Card text as prose. stripTags drops a tag without leaving anything behind,
+ *  which is right for "145&deg;T" and wrong for a list written with <br>: the
+ *  snippet came out reading "the heads, gas and galley;how to send a VHF
+ *  distress alert". A line break is a space. */
+function plainText(html) {
+  return stripTags(String(html).replace(/<br\s*\/?>/gi, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+/** Index the deck once, at load. stripTags goes through the DOM, so doing this
+ *  per keystroke would be three innerHTML writes per card — 1,611 of them for
+ *  every letter typed. */
+function indexDeck() {
+  deckWords = new Set();
+  for (const c of DECK.cards) {
+    // Padded with spaces so a whole-word test is a plain includes().
+    c._q = ' ' + searchable(c.q) + ' ';
+    c._a = ' ' + searchable(c.a) + ' ';
+    c._all = c._q + c._a;
+    c._plain = plainText(c.a);   // for the snippet, punctuation and all
+    for (const w of c._all.split(' ')) if (w) deckWords.add(w);
+  }
+}
+
+/* The one word the index rewrites, so the highlighter can find on screen what
+   the index matched. Without it a search for "degrees" returned cards written
+   145°T with nothing marked and no reason showing. */
+const DEGREE_ALT = { degrees: '°', degree: '°' };
+
+/** A typed word, plus the singular the user probably also meant: the deck says
+ *  "anchor" 49 times and "anchors" once, so searching the plural found one card
+ *  while the singular found all 49. The other direction already worked.
+ *
+ *  Only when the deck actually uses that singular as a word of its own. Cutting
+ *  the s off anything ending in one was a menace: "less" became "les" and
+ *  reached angles, cables, shackles and miles; "mass" became "mas" and reached
+ *  masthead and yachtmaster; and the highlighter then marked "cab-les". The
+ *  deck's own vocabulary is the dictionary — it knows "anchor" and has never
+ *  heard of "les". */
+function queryTerms(q) {
+  return searchable(q).split(' ').filter(Boolean).map((t) => {
+    const cut = t.length > 3 && t.endsWith('s') ? t.slice(0, -1) : t;
+    return { t, s: deckWords.has(cut) ? cut : t, alt: DEGREE_ALT[t] || '' };
+  });
+}
+const hasTerm = (hay, w) => hay.includes(w.t) || (w.s !== w.t && hay.includes(w.s));
+const hasWord = (hay, w) =>
+  hay.includes(' ' + w.t + ' ') || (w.s !== w.t && hay.includes(' ' + w.s + ' '));
+
+/** Best first. Deck order is not relevance: searching "tide" used to put
+ *  fourteen cards whose answers mention tides above the first card that is
+ *  actually about one. */
+function rankOf(c, terms) {
+  if (terms.every((w) => hasWord(c._q, w))) return 0;    // the question says it
+  if (terms.every((w) => hasTerm(c._q, w))) return 1;    // the question contains it
+  if (terms.every((w) => hasWord(c._all, w))) return 2;  // the answer says it
+  return 3;
+}
+
+/** The clause of an answer that made this card a hit. The list shows questions
+ *  only, so without this two thirds of results have no visible reason to be
+ *  there — searching "buoy" returns "What makes a cruising yacht stable?" and
+ *  the app looks broken. */
+function snippet(text, terms, len = 130) {
+  const low = text.toLowerCase();
+  let at = -1;
+  for (const w of terms) {
+    for (const [needle, whole] of needlesOf(w)) {
+      const i = findNeedle(low, needle, whole);
+      if (i >= 0 && (at < 0 || i < at)) at = i;
+    }
+  }
+  // Nothing of the query is in this text: better to say nothing than to quote
+  // an opening sentence and imply it is the reason.
+  if (at < 0) return '';
+  let start = Math.max(0, at - 45);
+  if (start > 0) {
+    const sp = text.indexOf(' ', start);
+    if (sp > -1 && sp < at) start = sp + 1;
+  }
+  let end = Math.min(text.length, start + len);
+  if (end < text.length) {
+    const sp = text.lastIndexOf(' ', end);
+    if (sp > start) end = sp;
+  }
+  return (start > 0 ? '…' : '') + text.slice(start, end).trim()
+    + (end < text.length ? '…' : '');
+}
+
+/** Every form of a term that could be on screen, with whether it only counts as
+ *  a whole word. The index normalises what it stores, so the highlighter has to
+ *  know what that normalisation was written as. */
+function needlesOf(w) {
+  const list = [[w.t, false]];
+  if (w.alt) list.push([w.alt, false]);
+  if (w.s !== w.t) list.push([w.s, false]);
+  return list;
+}
+const wordish = (ch) => !!ch && /[a-z0-9]/.test(ch);
+function findNeedle(low, needle, whole, from = 0) {
+  for (let i = low.indexOf(needle, from); i >= 0; i = low.indexOf(needle, i + 1)) {
+    if (!whole) return i;
+    if (!wordish(low[i - 1]) && !wordish(low[i + needle.length])) return i;
+  }
+  return -1;
+}
+
+/** Wrap matches in <mark>, walking the text nodes rather than the HTML: the
+ *  questions carry their own markup, and a term that landed inside a tag name
+ *  or an attribute would otherwise tear it apart. Returns how many it made, so
+ *  a row can tell whether it has yet explained itself. */
+function markTerms(root, terms) {
+  if (!terms.length || !root) return 0;
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walk.nextNode()) nodes.push(walk.currentNode);
+  let made = 0;
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    const low = text.toLowerCase();
+    const spans = [];
+    for (const w of terms) {
+      for (const [needle, whole] of needlesOf(w)) {
+        for (let i = findNeedle(low, needle, whole); i >= 0;
+             i = findNeedle(low, needle, whole, i + needle.length)) {
+          spans.push([i, i + needle.length]);
+        }
+      }
+    }
+    if (!spans.length) continue;
+    spans.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const s of spans) {
+      const last = merged[merged.length - 1];
+      if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]);
+      else merged.push([s[0], s[1]]);
+    }
+    const frag = document.createDocumentFragment();
+    let pos = 0;
+    for (const [a, b] of merged) {
+      if (a > pos) frag.appendChild(document.createTextNode(text.slice(pos, a)));
+      const m = document.createElement('mark');
+      m.textContent = text.slice(a, b);
+      frag.appendChild(m);
+      made++;
+      pos = b;
+    }
+    if (pos < text.length) frag.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(frag, node);
+  }
+  return made;
+}
+
+function scopeName(sk) {
+  if (sk === LEECH_FILTER) return 'the cards that keep slipping';
+  const s = sectionOf.get(sk);
+  return s ? s.t : sk;
+}
+
+/** The count on screen, and the same sentence spoken once you stop typing.
+ *
+ *  A live region reads out every write, and the 140ms search debounce still
+ *  lets one through per keystroke: typing "anchor" announced five sentences,
+ *  four of them already stale. The eye wants the number immediately; the ear
+ *  wants the last one only. */
+let sayTimer = null;
+function sayCount(text) {
+  if (text === browseCountSaid) return;
+  browseCountSaid = text;
+  $('#browse-count').textContent = text;
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => { $('#browse-say').textContent = text; }, 700);
+}
+
+function browseRow(hit, terms, withSection) {
+  const c = hit.c;
+  const sect = sectionOf.get(c.s);
+  const hasFig = !c.m && c.f && FIGURES && FIGURES[c.f.n];
+  const li = document.createElement('li');
+  li.dataset.card = c.i;
+  li.dataset.sect = c.s;
+  li.innerHTML = `<details><summary><span class="b-head"><span class="b-where" hidden></span>`
+    + `<span class="b-q"></span><span class="b-why" hidden></span></span></summary>`
+    + `<div class="browse-ans"><span class="b-text">${c.a}</span>
+      ${c.m ? `<button class="plate b-plate" aria-label="Enlarge the diagram: ${escAttr(stripTags(c.q))}"><img src="img/${encodeURIComponent(c.m)}" alt="Diagram: ${escapeHtml(stripTags(c.q))}" loading="lazy" width="${n(c.d[0])}" height="${n(c.d[1])}"></button><span class="b-zoom">Tap the diagram to enlarge</span>` : ''}
+      ${hasFig ? `<button class="plate b-fig" aria-label="Enlarge the drawing: ${escAttr(stripTags(c.q))}">${figureSVG(c)}</button><span class="b-zoom">Tap the drawing to enlarge</span>` : ''}
+      <span class="b-sect">${escapeHtml(sect ? sect.t : c.s)} · ${STATE_WORDS[stateOf(c.i)]}</span></div></details>`;
+  const q = li.querySelector('.b-q');
+  q.innerHTML = c.q;
+  // Whether the question ended up showing the match decides whether the row
+  // owes an explanation — not which tier it was ranked in. The two disagree
+  // wherever the index normalised something the screen still spells its own
+  // way, and it is exactly those rows that look like a bug.
+  const shown = markTerms(q, terms);
+  // Only the prose: the figure's own labels are markup from the build, and
+  // walking into the SVG to highlight a word inside a drawing is not the offer.
+  markTerms(li.querySelector('.b-text'), terms);
+  if (terms.length && !shown) {
+    const why = li.querySelector('.b-why');
+    const text = snippet(c._plain, terms);
+    if (text) {
+      why.textContent = text;
+      markTerms(why, terms);
+      why.hidden = false;
+    }
+  }
+  if (withSection && sect) {
+    const where = li.querySelector('.b-where');
+    where.textContent = sect.t;
+    where.hidden = false;
+  }
+  if (c.m) li.querySelector('.b-plate').addEventListener('click', () => openLightbox(c));
+  if (hasFig) {
+    const holder = li.querySelector('.b-fig');
+    litFigure(holder, c);
+    holder.addEventListener('click', () => openLightbox(c));
+  }
+  return li;
+}
+
+/** Rows `from` onwards, appended. Rebuilding the whole list to show the next
+ *  sixty closed every answer you had open and dropped you back at the top. */
+function appendRows(from) {
+  const list = $('#browse-list');
+  // The section is named on the first row of each run of them, so it reads as a
+  // heading. On every row it was the same eleven words down the whole screen.
+  // Only in deck order: results are sorted by relevance, so consecutive rows
+  // rarely share a section and the "heading" would be back on two rows in three.
+  const grouped = !$('#sect-filter').value && !browseTerms.length;
+  let prev = list.lastElementChild ? list.lastElementChild.dataset.sect : '';
+  const frag = document.createDocumentFragment();
+  for (const hit of browseHits.slice(from, browseLimit)) {
+    frag.appendChild(browseRow(hit, browseTerms, grouped && hit.c.s !== prev));
+    prev = hit.c.s;
+  }
+  const firstNew = frag.firstChild;
+  list.appendChild(frag);
+  const left = Math.max(0, browseHits.length - browseLimit);
+  const more = $('#browse-more');
+  more.hidden = !left;
+  if (left) more.textContent = `Show more (${left} left)`;
+  syncOpenLabel();
+  return firstNew;
+}
+
+/** What the button will do next, read off the rows rather than remembered:
+ *  paging sixty closed rows in under a "Close them again" label made it open a
+ *  hundred, and opening one answer by hand left it lying the other way. */
+function syncOpenLabel() {
+  const rows = $$('#browse-list details');
+  const allOpen = rows.length > 0 && rows.every((d) => d.open);
+  $('#browse-open').textContent = allOpen ? 'Close them again' : 'Open every answer';
+}
 
 function renderBrowse() {
   const sel = $('#sect-filter');
   const lc = leeches().length;
-  // Rebuilt only when the leech count changes, so the open dropdown does not
-  // reset itself while you are choosing from it.
-  if (sel.dataset.leeches !== String(lc)) {
-    sel.dataset.leeches = String(lc);
+  // Kept while it is the current filter even once the count reaches zero:
+  // dropping the option under a live selection silently reverted the view to
+  // all 537 cards with nothing on screen to say why.
+  const wantLeech = lc > 0 || sel.value === LEECH_FILTER;
+  const shape = `${lc}/${wantLeech}`;
+  // Rebuilt only when that changes, so the open dropdown does not reset itself
+  // while you are choosing from it.
+  if (sel.dataset.leeches !== shape) {
+    sel.dataset.leeches = shape;
     const keep = sel.value;
     sel.innerHTML = '<option value="">All sections</option>' +
-      (lc ? `<option value="${LEECH_FILTER}">★ Keeps slipping (${n(lc)})</option>` : '') +
+      (wantLeech ? `<option value="${LEECH_FILTER}">★ Keeps slipping (${n(lc)})</option>` : '') +
       DECK.sections.map((s) => `<option value="${escapeHtml(s.k)}">${escapeHtml(s.t)}</option>`).join('');
     sel.value = keep;
   }
-  const q = $('#search').value.trim().toLowerCase();
+  const raw = $('#search').value.trim();
   const sk = sel.value;
-  const terms = q.split(/\s+/).filter(Boolean);
-  const hits = DECK.cards.filter((c) => {
+  const terms = queryTerms(raw);
+  const inScope = (c) => {
     if (sk === LEECH_FILTER) {
       const r = state.recs[c.i];
-      if (!r || r.lp < LEECH_AT) return false;
-    } else if (sk && c.s !== sk) return false;
-    if (!terms.length) return true;
-    const hay = (c.q + ' ' + c.a).toLowerCase();
-    return terms.every((t) => hay.includes(t));
-  });
+      return !!r && r.lp >= LEECH_AT;
+    }
+    return !sk || c.s === sk;
+  };
 
-  const filtered = !!(sk || terms.length);
-  $('#browse-count').textContent = filtered
-    ? `${hits.length} of ${DECK.cards.length} cards`
-    : `${hits.length} cards`;
-  $('#browse-clear').hidden = !filtered;
+  let scope = 0;
+  const hits = [];
+  for (const c of DECK.cards) {
+    if (!inScope(c)) continue;
+    scope++;
+    if (!terms.length) { hits.push({ c, r: 0 }); continue; }
+    if (!terms.every((w) => hasTerm(c._all, w))) continue;
+    hits.push({ c, r: rankOf(c, terms) });
+  }
+  hits.sort((a, b) => a.r - b.r);   // stable, so deck order survives inside a tier
+  browseHits = hits;
+  browseTerms = terms;
+
+  const all = DECK.cards.length;
+  $('#search').placeholder = sk ? `Search ${n(scope)} cards…` : `Search ${n(all)} cards…`;
+
+  // Say what was actually searched. "4 of 537" while a 21-card section is
+  // selected reads like the search swept the deck and nearly nothing matched.
+  let count;
+  if (!hits.length) {
+    count = terms.length
+      ? `Nothing matches “${raw}”${sk ? ` in ${scopeName(sk)}` : ''}.`
+      : (sk === LEECH_FILTER
+        ? 'No cards are slipping yet.'
+        : `No cards in ${scopeName(sk)}.`);
+  } else if (terms.length && sk) {
+    count = `${n(hits.length)} of the ${n(scope)} cards in ${scopeName(sk)}`;
+  } else if (terms.length) {
+    count = `${n(hits.length)} of ${n(all)} cards`;
+  } else if (sk) {
+    count = `${n(scope)} cards in ${scopeName(sk)}`;
+  } else {
+    count = `${n(all)} cards`;
+  }
+  if (hits.length > BROWSE_FIRST) count += ` · showing ${n(Math.min(browseLimit, hits.length))}`;
+  sayCount(count);
+  $('#browse-count').classList.toggle('nothing', !hits.length);
+
+  // One control, labelled for what it will actually undo — the old combined
+  // "Clear search and filter" threw away a typed query when the empty state had
+  // just told you to clear the filter.
+  const clear = $('#browse-clear');
+  clear.hidden = !(sk || terms.length);
+  clear.textContent = sk && terms.length ? 'Clear search and filter'
+    : terms.length ? 'Clear search' : 'Clear filter';
+
+  // A search that finds nothing here may still find something in the deck.
+  const wide = $('#browse-wide');
+  const elsewhere = (!hits.length && terms.length && sk)
+    ? DECK.cards.filter((c) => terms.every((w) => hasTerm(c._all, w))).length : 0;
+  wide.hidden = !elsewhere;
+  if (elsewhere) {
+    wide.textContent = `Search all ${n(all)} cards instead — ${n(elsewhere)} match${elsewhere === 1 ? '' : 'es'}`;
+  }
+
+  // Filtering to a section is usually an attempt to work through it.
+  const study = $('#browse-study');
+  const realSection = sk && sk !== LEECH_FILTER && !terms.length && hits.length;
+  study.hidden = !realSection;
+  if (realSection) study.textContent = `Study ${scopeName(sk)} →`;
+
+  // Reading position survives a re-render: this also runs when a sync lands or
+  // another tab writes, and having the answer you were reading snap shut
+  // underneath you is worse than being slightly out of date.
+  const body = $('#s-browse .body');
+  const wasAt = body ? body.scrollTop : 0;
+  const open = new Set();
+  for (const el of $$('#browse-list li details[open]')) open.add(el.parentElement.dataset.card);
 
   const list = $('#browse-list');
   list.innerHTML = '';
+  // Only once something is narrowed: opening all forty answers of an unfiltered
+  // deck is not a thing anyone wants, and reading a section end to end is.
+  $('#browse-open').hidden = !(hits.length && (sk || terms.length));
+  syncOpenLabel();
   if (!hits.length) {
-    const bits = [];
-    if (terms.length) bits.push(`nothing matches “${q}”`);
-    if (sk === LEECH_FILTER) bits.push('no cards are slipping yet');
-    else if (sk) bits.push(`in ${(sectionOf.get(sk) || {}).t || sk}`);
-    list.innerHTML = `<li class="empty">${escapeHtml(bits.join(' ') || 'No cards')}. Try fewer words, or clear the filter.</li>`;
     $('#browse-more').hidden = true;
     return;
   }
-  for (const c of hits.slice(0, browseLimit)) {
-    const li = document.createElement('li');
-    const sect = sectionOf.get(c.s);
-    const hasFig = !c.m && c.f && FIGURES && FIGURES[c.f.n];
-    li.innerHTML = `<details><summary></summary><div class="browse-ans">${c.a}
-      ${c.m ? `<img src="img/${encodeURIComponent(c.m)}" alt="Diagram: ${escapeHtml(stripTags(c.q))}" loading="lazy" width="${n(c.d[0])}" height="${n(c.d[1])}"><span class="b-zoom">Tap the diagram to enlarge</span>` : ''}
-      ${hasFig ? `<span class="b-fig">${figureSVG(c)}</span><span class="b-zoom">Tap the drawing to enlarge</span>` : ''}
-      <span class="b-sect">${escapeHtml(sect ? sect.t : c.s)} · ${STATE_WORDS[stateOf(c.i)]}</span></div></details>`;
-    li.querySelector('summary').innerHTML = c.q;
-    if (c.m) {
-      li.querySelector('img').addEventListener('click', () => openLightbox(c));
-    }
-    if (hasFig) {
-      const holder = li.querySelector('.b-fig');
-      litFigure(holder, c);
-      holder.addEventListener('click', () => openLightbox(c));
-    }
-    list.appendChild(li);
+  browseLimit = Math.max(BROWSE_FIRST, Math.min(browseLimit, hits.length));
+  appendRows(0);
+  for (const li of $$('#browse-list li')) {
+    if (open.has(li.dataset.card)) li.querySelector('details').open = true;
   }
-  $('#browse-more').hidden = hits.length <= browseLimit;
-  $('#browse-more').textContent = `Show more (${hits.length - browseLimit} left)`;
+  if (body) body.scrollTop = Math.min(wasAt, body.scrollHeight);
 }
 
 /* ── stats ── */
@@ -1862,20 +2200,70 @@ function wire() {
     save();
   });
 
+  /* A changed result set is a different list, so it starts at the top. Without
+     this, narrowing a search while scrolled 1,200px down leaves you in the
+     middle of results you have not seen, with the new count off screen. */
+  const searchAgain = () => {
+    browseLimit = BROWSE_FIRST;
+    renderBrowse();
+    const body = $('#s-browse .body');
+    if (body) body.scrollTop = 0;
+  };
   let searchTimer = null;
   $('#search').addEventListener('input', () => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { browseLimit = 40; renderBrowse(); }, 140);
+    searchTimer = setTimeout(searchAgain, 140);
   });
-  $('#sect-filter').addEventListener('change', () => { browseLimit = 40; renderBrowse(); });
+  // enterkeyhint says "search", so Enter has to do something: run what is typed
+  // now rather than in 140ms, and put the phone keyboard away.
+  $('#search').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    clearTimeout(searchTimer);
+    searchAgain();
+    // Only where blurring buys something. On a desktop it costs: focus would
+    // land on <body>, which is the far end of the document from here.
+    if (matchMedia('(pointer: coarse)').matches) e.target.blur();
+  });
+  $('#sect-filter').addEventListener('change', searchAgain);
   $('#browse-clear').addEventListener('click', () => {
     $('#search').value = '';
     $('#sect-filter').value = '';
-    browseLimit = 40;
-    renderBrowse();
+    searchAgain();
     $('#search').focus();
   });
-  $('#browse-more').addEventListener('click', () => { browseLimit += 60; renderBrowse(); });
+  $('#browse-wide').addEventListener('click', () => {
+    $('#sect-filter').value = '';
+    searchAgain();
+    $('#search').focus();
+  });
+  $('#browse-study').addEventListener('click', () => {
+    const sk = $('#sect-filter').value;
+    if (sk && sk !== LEECH_FILTER) startSession(sk, {});
+  });
+  $('#browse-open').addEventListener('click', () => {
+    const rows = $$('#browse-list details');
+    const opening = !rows.every((d) => d.open);
+    rows.forEach((d) => { d.open = opening; });
+    syncOpenLabel();
+  });
+  // `toggle` does not bubble, so this listens on the way down. Opening one
+  // answer by hand has to be able to change what the button offers.
+  $('#browse-list').addEventListener('toggle', syncOpenLabel, true);
+  $('#browse-more').addEventListener('click', () => {
+    const from = browseLimit;
+    browseLimit += BROWSE_PAGE;
+    const firstNew = appendRows(from);
+    // The button that was under your thumb has moved sixty rows down. Put the
+    // first row it produced at the top and stand on it, which is also what a
+    // screen reader needs — the appended rows are announced by nothing.
+    if (firstNew) {
+      firstNew.scrollIntoView({ block: 'start' });
+      firstNew.querySelector('summary').focus({ preventScroll: true });
+    }
+    sayCount(browseCountSaid.replace(/ · showing \d+$/, '')
+      + ` · showing ${n(Math.min(browseLimit, browseHits.length))}`);
+  });
 
   $('#set-new').addEventListener('change', (e) => {
     state.settings.newPerDay = clamp(parseInt(e.target.value, 10) || 0, 0, 200);
@@ -1941,10 +2329,12 @@ function wire() {
     toast('You can add a date later in Progress.');
   });
   $('#leech-row').addEventListener('click', () => {
-    go('browse');
+    // The query first, so the render inside go() is not forty rows of whatever
+    // was last searched — but the filter only after it, because go() renders,
+    // and rendering is what puts the ★ option in the list to be chosen.
     $('#search').value = '';
+    go('browse');
     $('#sect-filter').value = LEECH_FILTER;
-    browseLimit = 40;
     renderBrowse();
   });
 
@@ -2202,6 +2592,7 @@ async function boot() {
   $('#boot-art').innerHTML = doodle('boat');
   byId = new Map(DECK.cards.map((c) => [c.i, c]));
   sectionOf = new Map(DECK.sections.map((s) => [s.k, s]));
+  indexDeck();
 
   // drop history for cards that no longer exist
   for (const id of Object.keys(state.recs)) if (!byId.has(id)) delete state.recs[id];

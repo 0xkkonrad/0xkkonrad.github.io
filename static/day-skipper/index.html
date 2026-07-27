@@ -202,8 +202,8 @@
   <section class="screen" id="s-browse" hidden>
     <header class="top">
       <div>
-        <h1>Browse</h1>
-        <p class="sub">Read without grading</p>
+        <h1 tabindex="-1">Browse</h1>
+        <p class="sub">Read any card. Nothing here is graded.</p>
       </div>
     </header>
     <div class="searchbar">
@@ -211,10 +211,18 @@
       <input id="search" type="search" placeholder="Search 537 cards…" autocomplete="off" enterkeyhint="search">
       <label class="sr" for="sect-filter">Filter by section</label>
       <select id="sect-filter"></select>
+      <p class="result-count" id="browse-count"></p>
+      <!-- The spoken half, separate so it can wait for you to stop typing: a
+           live region on the visible count read out a sentence per keystroke. -->
+      <p class="sr" id="browse-say" role="status" aria-live="polite"></p>
+      <div class="browse-acts">
+        <button class="link-btn" id="browse-open" hidden>Open every answer</button>
+        <button class="link-btn" id="browse-study" hidden></button>
+        <button class="link-btn" id="browse-wide" hidden></button>
+        <button class="link-btn" id="browse-clear" hidden>Clear</button>
+      </div>
     </div>
     <main class="body">
-      <p class="result-count" id="browse-count" role="status"></p>
-      <button class="link-btn" id="browse-clear" hidden>Clear search and filter</button>
       <ul class="browse-list" id="browse-list"></ul>
       <button class="ghost wide" id="browse-more" hidden>Show more</button>
     </main>

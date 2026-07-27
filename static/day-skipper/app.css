@@ -392,11 +392,9 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .install .btn-row .ghost { flex: 0 0 auto; }
 .install .btn-row { align-items: center; }
 
-.browse-list .empty {
-  padding: 24px 2px; color: var(--muted); font-size: .88rem;
-  background: none; border: 0;
-}
-#browse-clear { margin-left: 8px; }
+/* No .browse-list .empty rule: when nothing matches, the count line above the
+   list says so and the recovery buttons sit beside it, rather than a sentence
+   inside a list of no things. */
 
 
 /* ── labelled doodles ────────────────────────────────────────────── */
@@ -414,11 +412,19 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 }
 button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 
-/* In browse the drawing sits under the answer, same as a diagram does. */
+/* In browse the drawing sits under the answer, same as a diagram does — and is
+   a real button, as it is on the study screen. As a <span> with a click handler
+   the lightbox was unreachable without a pointer, under a line of text telling
+   you to tap it. */
 .b-fig {
-  display: block; margin: 12px 0 0; padding: 10px 6px 6px;
+  display: block; width: 100%; margin: 12px 0 0; padding: 10px 6px 6px;
   background: var(--surface); border: var(--bw) solid var(--stroke);
-  border-radius: var(--r-sm); cursor: zoom-in;
+  border-radius: var(--r-sm); cursor: zoom-in; text-align: left;
+}
+/* The diagram's own border is the frame; the button is only the hit area. */
+.b-plate {
+  display: block; width: 100%; padding: 0;
+  background: none; border: 0; cursor: zoom-in;
 }
 
 /* Enlarged, a figure is still vector: it is the card's own markup scaled by
@@ -636,7 +642,7 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 .dock-foot { display: flex; justify-content: space-between; gap: 12px; max-width: 60ch; margin: 8px auto 0; }
 .link-btn {
   background: none; border: 0; padding: 10px 2px;
-  min-height: 40px; color: var(--muted);
+  min-height: var(--tap); color: var(--muted);
   font-size: .78rem; text-decoration: underline; text-underline-offset: 3px;
   text-decoration-style: dotted; text-transform: lowercase;
 }
@@ -733,7 +739,10 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 
 /* ── browse ──────────────────────────────────────────────────────── */
 
-.searchbar { display: grid; gap: 8px; padding: 0 20px 14px; }
+/* The count and the clear/open controls live up here with the field rather than
+   in the scrolling list: they are feedback on what you just typed, and from
+   1,200px down the list they were a thousand pixels off screen. */
+.searchbar { display: grid; gap: 8px; padding: 0 20px 12px; }
 #search, #sect-filter {
   width: 100%; min-height: var(--tap); padding: 0 12px;
   background: var(--surface); border: var(--bw) solid var(--stroke);
@@ -745,21 +754,57 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
   background-position: calc(100% - 18px) 21px, calc(100% - 13px) 21px;
   background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
 }
-.result-count { margin: 0 0 4px; font-size: .78rem; color: var(--muted); }
+/* The native ✕ in a type=search field is a four-pixel-wide target that clears
+   the text and leaves the section filter set, next to a labelled button that
+   says what it will undo. One of them had to go. */
+#search::-webkit-search-cancel-button { display: none; }
 
-.browse-list { list-style: none; margin: 8px 0 0; padding: 0; border-top: 2px dotted var(--line); }
+.result-count { margin: 2px 0 0; font-size: .78rem; color: var(--muted); }
+.result-count.nothing { color: var(--text); font-size: .86rem; margin-top: 4px; }
+.browse-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; }
+.browse-acts .link-btn { padding-left: 0; padding-right: 0; }
+
+.browse-list { list-style: none; margin: 0; padding: 0; border-top: 2px dotted var(--line); }
+/* No rule ruling off an empty screen. */
+.browse-list:empty { border-top: 0; }
 .browse-list li { border-bottom: 2px dotted var(--line); background: none; }
 .browse-list summary {
   padding: 14px 2px; min-height: var(--tap);
   display: flex; align-items: center; gap: 12px;
   cursor: pointer; list-style: none; font-weight: 500; font-size: .92rem;
 }
-.browse-list summary::-webkit-details-marker { display: none; }
-.browse-list summary::after {
-  content: "+"; margin-left: auto; color: var(--accent); font-size: 1.1rem; flex: none;
+.b-head { flex: 1; min-width: 0; }
+/* Why this card is in the list, when the word you searched for is in the answer
+   and the row shows only the question. */
+.b-why {
+  display: block; margin-top: 5px;
+  font-weight: 400; font-size: .74rem; line-height: 1.55; color: var(--muted);
 }
-.browse-list details[open] summary::after { content: "\2212"; }
-.browse-ans { padding: 0 0 18px; font-size: .92rem; line-height: 1.7; color: var(--muted); }
+/* Once the card is open the whole answer is right there, and the extract of it
+   sat four lines above saying the same words in a worse shape. */
+.browse-list details[open] .b-why { display: none; }
+/* Which section the run of rows below belongs to. */
+.b-where {
+  display: block; margin-bottom: 4px;
+  font-weight: 400; font-size: .7rem; color: var(--muted);
+}
+/* The flag colour, not the accent: the card text already uses the accent for
+   its own emphasis, so an accent-coloured match was indistinguishable from a
+   bold phrase that happened to be nearby. This is the same chip yellow the
+   leech and streak markers use, on the same near-black ink. */
+mark {
+  background: var(--flag); color: #121214;
+  padding: 0 2px; border-radius: 2px;
+}
+.browse-list summary::-webkit-details-marker { display: none; }
+/* A chevron, not a plus: in a flashcard app "+" reads as add-this-to-my-deck at
+   least as readily as expand. */
+.browse-list summary::after {
+  content: "\25be"; margin-left: auto; color: var(--accent); font-size: .9rem; flex: none;
+}
+.browse-list details[open] summary::after { content: "\25b4"; }
+/* The answer is what you opened the card for: it is not secondary text. */
+.browse-ans { padding: 0 0 18px; font-size: .92rem; line-height: 1.7; color: var(--text); }
 .browse-ans b { color: var(--accent); font-weight: 500; }
 .browse-ans .b-sect { display: block; margin-top: 12px; font-size: .72rem; }
 .browse-ans img {
