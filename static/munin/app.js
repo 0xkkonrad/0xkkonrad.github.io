@@ -22,9 +22,10 @@ const AHEAD_BATCH = 20;
 // other JSON someone happens to pick.
 const EXPORT_APP = 'munin/' + COURSE.id;
 const EXPORT_FORMAT = 1;
-// The exam this deck was built for. A fresh install starts here rather than
-// asking; it is changed in Progress, and clearing it goes back to plain spacing.
-const EXAM_DEFAULT = '2026-09-12';
+// A course may name the exam it was built for (course.json examDate); a fresh
+// install starts there rather than asking. It is changed in Progress, and
+// clearing it goes back to plain spacing. No date in the course → no default.
+const EXAM_DEFAULT = (typeof COURSE.examDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(COURSE.examDate)) ? COURSE.examDate : '';
 // A <input type="date"> fires `change` on every keystroke in the year segment,
 // so typing 2026 walks through 0002, 0020 and 0202 on its way. Anything outside
 // this window is someone mid-keystroke, not a date they mean.
@@ -2781,6 +2782,9 @@ async function boot() {
     return;
   }
   $('#boot-art').innerHTML = doodle((COURSE.boot || {}).art || COURSE.fallback);
+  for (const el of document.querySelectorAll('[data-deck-size]')) {
+    el.textContent = DECK.cards.length + ' cards';
+  }
   byId = new Map(DECK.cards.map((c) => [c.i, c]));
   sectionOf = new Map(DECK.sections.map((s) => [s.k, s]));
   // An older cards.json in the cache has no groups. The index falls back to one
