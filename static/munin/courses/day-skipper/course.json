@@ -1,0 +1,65 @@
+{
+ "id": "day-skipper",
+ "title": "RYA Day Skipper",
+ "tagline": "theory deck",
+ "accent": {
+  "light": "#3a30d8",
+  "dark": "#9d95ff",
+  "inkLight": "#fffdf7",
+  "inkDark": "#141519"
+ },
+ "boot": {
+  "art": "boat",
+  "anim": "sail",
+  "line": "Loading deck\u2026"
+ },
+ "fallback": "boat",
+ "shelfArt": "boat",
+ "sectionArt": {
+  "terms": "boat",
+  "ropework": "knot",
+  "anchoring": "anchor",
+  "safety": "lifering",
+  "colregs": "crossing",
+  "lights": "lamp",
+  "sound": "horn",
+  "position": "dividers",
+  "charts": "chart",
+  "compass": "compass",
+  "chartwork": "plotter",
+  "tides": "wave",
+  "streams": "current",
+  "buoyage": "buoy",
+  "lightchar": "flash",
+  "meteo": "cloud",
+  "pilotage": "lighthouse",
+  "fog": "fogbank",
+  "emergencies": "flare",
+  "engine": "propeller",
+  "handling": "wheel",
+  "passage": "route",
+  "electronics": "radar",
+  "environment": "fish"
+ },
+ "groupArt": {
+  "hull": "wheel",
+  "rules": "crossing",
+  "fix": "dividers",
+  "weather": "moon",
+  "landfall": "lighthouse",
+  "trouble": "flare",
+  "plan": "route"
+ },
+ "friezeArt": [
+  "boat",
+  "buoy",
+  "gull",
+  "wave",
+  "lighthouse",
+  "anchor",
+  "fish",
+  "knot",
+  "flag",
+  "compass"
+ ]
+}

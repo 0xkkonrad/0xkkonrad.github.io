@@ -1,0 +1,47 @@
+{
+ "id": "competent-crew",
+ "title": "RYA Competent Crew",
+ "tagline": "practical crew deck",
+ "accent": {
+  "light": "#33608d",
+  "dark": "#7fb2e8",
+  "inkLight": "#fffdf7",
+  "inkDark": "#141519"
+ },
+ "boot": {
+  "art": "lifering",
+  "anim": "sail",
+  "line": "Loading deck\u2026"
+ },
+ "fallback": "lifering",
+ "shelfArt": "lifering",
+ "sectionArt": {
+  "cc-seaterms": "boat",
+  "cc-sailhandling": "flag",
+  "cc-ropework": "knot",
+  "cc-fire": "flash",
+  "cc-safetygear": "lifering",
+  "cc-mob": "buoy",
+  "cc-emergency": "flare",
+  "cc-manners": "gull",
+  "cc-lookout": "radar",
+  "cc-tender": "propeller",
+  "cc-weather": "cloud",
+  "cc-seasickness": "fish",
+  "cc-helming": "wheel",
+  "cc-duties": "route"
+ },
+ "groupArt": {},
+ "friezeArt": [
+  "lifering",
+  "buoy",
+  "gull",
+  "wave",
+  "boat",
+  "anchor",
+  "fish",
+  "knot",
+  "flag",
+  "compass"
+ ]
+}
