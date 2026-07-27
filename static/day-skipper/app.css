@@ -379,6 +379,19 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .trouble span { font-weight: 500; font-size: .9rem; color: var(--warn); }
 .trouble small { color: var(--muted); font-size: .76rem; }
 
+/* The install nudge. Paper and ink like the rest, deliberately not accented:
+   it is an offer, and it sits on the same screen as the button you came for. */
+.install {
+  margin-top: 24px; padding: 12px 14px;
+  background: var(--surface); border: var(--bw) solid var(--stroke);
+  border-radius: var(--r);
+}
+.install-lead { margin: 0; font-weight: 500; font-size: .9rem; }
+.install-note { margin: 4px 0 12px; color: var(--muted); font-size: .78rem; line-height: 1.6; }
+/* One button and one link, so the link must not stretch like a .ghost does. */
+.install .btn-row .ghost { flex: 0 0 auto; }
+.install .btn-row { align-items: center; }
+
 .browse-list .empty {
   padding: 24px 2px; color: var(--muted); font-size: .88rem;
   background: none; border: 0;
@@ -426,12 +439,18 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
   fill: none; stroke: currentColor; stroke-width: 1.4;
   stroke-linecap: round; stroke-linejoin: round;
   color: var(--accent);
+  /* The default size for a label, set here on the drawing rather than on the
+     text, so that a `font-size` attribute on a single label can still win.
+     Set on `.figure text` it could not: author CSS beats a presentation
+     attribute, which is why every `size=` in figures.py rendered at 15 for
+     as long as this file has existed. */
+  font-size: 15px;
 }
 /* Labels sit on top of the drawing, so they are knocked out of it: the paper
    colour is painted as a fat stroke *under* the glyphs. Without this every
    label that crosses a rigging wire reads as struck through. */
 .figure text {
-  fill: var(--text); font-family: var(--hand); font-size: 15px; font-weight: 400;
+  fill: var(--text); font-family: var(--hand); font-weight: 400;
   letter-spacing: .01em;
   paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px;
   stroke-linejoin: round;

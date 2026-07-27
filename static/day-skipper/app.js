@@ -915,6 +915,72 @@ function renderLeechRow() {
     `${l.length} card${l.length === 1 ? '' : 's'} keep${l.length === 1 ? 's' : ''} slipping`;
 }
 
+/* ── install ── */
+
+/* Whether this device has the app on its home screen is a fact about the device,
+ * so it gets its own key and stays out of the synced state: adopting a laptop's
+ * "already installed" would silence the nudge on a phone that never saw it.
+ * See web/sync.js for what does travel. */
+const INSTALL_KEY = 'rya-ds/install-v1';
+// A dismissal is "not now", not "never". Long enough that it is not nagging,
+// short enough that someone who dismissed it in week one and is still opening
+// the deck in a browser tab a month later is offered it again.
+const INSTALL_SNOOZE = 30 * DAY;
+// Chrome fires beforeinstallprompt once, early — before the deck has loaded and
+// so before any render. Held here until Home is drawn.
+let installEvent = null;
+
+function isInstalled() {
+  // navigator.standalone is iOS's own, and the only signal there.
+  return matchMedia('(display-mode: standalone)').matches
+    || matchMedia('(display-mode: minimal-ui)').matches
+    || matchMedia('(display-mode: fullscreen)').matches
+    || navigator.standalone === true;
+}
+
+/** iOS has no install API at all, so the offer there is an instruction. */
+function isIOS() {
+  const ua = navigator.userAgent;
+  // iPadOS 13+ reports itself as a Mac. The touch points are the tell.
+  return /iPhone|iPad|iPod/.test(ua)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function installSnoozedUntil() {
+  try {
+    const v = JSON.parse(localStorage.getItem(INSTALL_KEY) || 'null');
+    return isPlainObject(v) ? n(v.at) + INSTALL_SNOOZE : 0;
+  } catch (e) {
+    return 0;   // Safari in private mode throws on localStorage; just show it.
+  }
+}
+
+function snoozeInstall() {
+  $('#install-card').hidden = true;
+  try {
+    localStorage.setItem(INSTALL_KEY, JSON.stringify({ at: Date.now() }));
+  } catch (e) { /* nothing to do; it reappears next month either way */ }
+}
+
+function renderInstall() {
+  const card = $('#install-card');
+  const btn = $('#install-btn');
+  const ios = isIOS();
+  // Offered after the first card, not before it. A first-time visitor asked to
+  // install something they have not used yet says no, and the ask is spent.
+  const earned = state.answers > 0;
+  const can = installEvent || ios;
+  if (!can || isInstalled() || !earned || Date.now() < installSnoozedUntil()) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  btn.hidden = !installEvent;
+  $('#install-note').textContent = installEvent
+    ? 'It opens like an app, with no browser bar, and the cards work with no signal at all.'
+    : 'Tap the share button, then “Add to Home Screen”. It then opens like an app, and the cards work with no signal at all.';
+}
+
 function renderHome() {
   rollDay();
   renderFrieze();
@@ -964,6 +1030,7 @@ function renderHome() {
   renderAskExam(c);
   renderExamBanner(c);
   renderLeechRow();
+  renderInstall();
 
   const list = $('#section-list');
   list.innerHTML = '';
@@ -2007,6 +2074,43 @@ function wire() {
     toast(lost
       ? `Restored ${known.length} cards. ${lost} were from an older deck and were dropped.`
       : `Restored ${known.length} cards of history.`);
+  });
+
+  // The browser decides whether installing is possible and tells us here. The
+  // preventDefault stops Chrome's own mini-infobar, so the offer appears once,
+  // in the app's voice, on the screen it belongs on.
+  addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installEvent = e;
+    if (current === 'home' && state) renderInstall();
+  });
+
+  addEventListener('appinstalled', () => {
+    installEvent = null;
+    $('#install-card').hidden = true;
+  });
+
+  $('#install-btn').addEventListener('click', async () => {
+    // A prompt is single-use: Chrome rejects a second prompt() on the same event
+    // and fires a fresh beforeinstallprompt if the user declines.
+    const e = installEvent;
+    installEvent = null;
+    $('#install-card').hidden = true;
+    if (!e) return;
+    try {
+      await e.prompt();
+      const res = await e.userChoice;
+      // Declining the browser's own dialog is an answer. Asking again on the
+      // next render would be the third time of asking in one sitting.
+      if (!res || res.outcome !== 'accepted') snoozeInstall();
+    } catch (err) {
+      snoozeInstall();
+    }
+  });
+
+  $('#install-no').addEventListener('click', () => {
+    installEvent = null;
+    snoozeInstall();
   });
 
   $('#prefetch-btn').addEventListener('click', async () => {

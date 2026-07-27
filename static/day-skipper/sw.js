@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'rya-ds-e32a1b59e3';
+const V = 'rya-ds-cbd1f36599';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
@@ -32,6 +32,9 @@ function ok(r, expected) {
   return got === expected;
 }
 
+// The install screenshots in shots/ are deliberately not in here: the browser
+// reads them once, at install time, when it is by definition online. Precaching
+// half a megabyte of shop window into the offline shell is the wrong trade.
 const SHELL = [
   './',
   'index.html',
@@ -46,6 +49,7 @@ const SHELL = [
   'fonts/dm-mono-400.woff2',
   'fonts/architects-daughter.woff2',
   'fonts/dm-mono-500.woff2',
+  'icon-180.png',
   'icon-192.png',
   'icon-512.png',
   'icon-maskable.png',

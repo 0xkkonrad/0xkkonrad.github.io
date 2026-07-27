@@ -10,9 +10,18 @@
 <title>RYA Day Skipper — flashcards</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<!-- The home-screen label. Without it iOS uses <title>, which is too long and
+     gets elided to "RYA Day Ski…" under the icon. -->
+<meta name="apple-mobile-web-app-title" content="Day Skipper">
+<!-- Deliberately `default`, not `black-translucent`. Since iOS 15 the standalone
+     status bar takes its colour from `theme-color` above, which this app rewrites
+     when you switch theme — so it already follows the paper into dark mode.
+     `black-translucent` would force white status text over light paper and hide
+     the clock in the app's own default theme. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preload" href="fonts/dm-mono-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/dm-mono-500.woff2" as="font" type="font/woff2" crossorigin>
 <!-- The figure labels are hand-lettered; the drawings are stroked, so a late
@@ -80,6 +89,20 @@
         <span></span>
         <small>Answering them again is not working — go and read them</small>
       </button>
+
+      <!-- Put it on the home screen. Hidden in the markup and only ever revealed
+           by app.js: whether this is possible at all is something only the
+           browser knows, and an app already installed must not nag you to
+           install it. The button is absent on iOS, which has no API for this and
+           gets the two-tap instruction instead. -->
+      <div class="install" id="install-card" hidden>
+        <p class="install-lead">Keep it on your home screen</p>
+        <p class="install-note" id="install-note"></p>
+        <div class="btn-row">
+          <button class="ghost" id="install-btn" hidden>Install</button>
+          <button class="link-btn" id="install-no">Not now</button>
+        </div>
+      </div>
 
       <h2 class="h-sect">Sections</h2>
       <ul class="sections" id="section-list"></ul>
