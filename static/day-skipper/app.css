@@ -454,8 +454,16 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 .figure text.c-amb:not(.on) { opacity: .34; }
 .figure [data-l].on { opacity: 1; }
 /* The small print under a label is only ever about the label. Dimmed, it is
-   unreadable texture that makes the drawing look smudged — so it goes. */
-.figure text.f-note { stroke-width: 3px; }
+   unreadable texture that makes the drawing look smudged — so it goes.
+
+   It also carries the hand at its thinnest. Architects Daughter ships one
+   weight, so the browser is asked to synthesise a heavier one here: the
+   flares card has four lines of small print under each flare, and at 400 it
+   measured a fifth less ink on the page than the mono it replaced. Nothing
+   larger — the note sizes in figures.py have never reached the page, because
+   `.figure text` sets font-size in CSS and author CSS beats a presentation
+   attribute. That is worth fixing one day; it is not this change. */
+.figure text.f-note { stroke-width: 3px; font-weight: 600; }
 /* Only small print that belongs to a label disappears with it. Small print
    with no label — a chart's scale numbers — is part of the drawing and stays,
    or the one card that needs to read a position off the grid loses the grid. */

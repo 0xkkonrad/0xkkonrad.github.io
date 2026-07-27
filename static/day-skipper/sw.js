@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'rya-ds-442e9b4c3b';
+const V = 'rya-ds-5630dca405';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
