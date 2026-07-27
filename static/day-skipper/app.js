@@ -204,7 +204,27 @@ function writeNow() {
   if (globalThis.DSSync && !session) DSSync.schedule(() => state);
 }
 addEventListener('pagehide', writeNow);
-addEventListener('visibilitychange', () => { if (document.hidden) writeNow(); });
+
+/* Coming back to the app is the other moment the other device's session is
+ * most likely to be sitting there waiting. Opening it covers a cold load, but
+ * an installed app resumed from the background never runs boot() again, so
+ * without this a phone that is never fully closed would only ever push.
+ *
+ * Throttled, because backgrounding and foregrounding is something a phone does
+ * on its own, several times, while you are reading one card. */
+const RESUME_AFTER = 60000;
+function syncOnReturn() {
+  if (document.hidden || !DECK || session) return;
+  if (!globalThis.DSSync || !DSSync.enabled()) return;
+  if (Date.now() - (DSSync.status().at || 0) < RESUME_AFTER) return;
+  runSync();
+}
+addEventListener('visibilitychange', () => {
+  if (document.hidden) writeNow(); else syncOnReturn();
+});
+// Signal came back. Whatever failed while it was gone is worth another go, and
+// this is the only thing that makes "it will try again" true without a button.
+addEventListener('online', syncOnReturn);
 
 /* Two tabs on the same deck used to overwrite each other silently — whichever
  * saved last won, and the other tab's answers were gone. Adopt the other tab's
@@ -1352,6 +1372,10 @@ function adoptSynced(merged) {
   if (DSSync.stable(merged) === DSSync.stable(state)) return;
   state = sanitise(merged);
   for (const id of Object.keys(state.recs)) if (!byId.has(id)) delete state.recs[id];
+  // Adopting is not a local settings change. Without this the write below
+  // re-stamps the block with this device's clock, and a device that merely
+  // received someone else's settings would outrank them at the next merge.
+  settingsShape = JSON.stringify(Object.assign({}, state.settings, { at: 0 }));
   rollDay();
   writeNow();
   applyTheme();
@@ -1363,11 +1387,17 @@ function adoptSynced(merged) {
 let syncBusy = false;
 
 /** Push whatever is on this device and take back whatever the merge produced.
- *  Quiet when it runs by itself, spoken when a button asked for it. */
+ *  Quiet when it runs by itself, spoken when a button asked for it.
+ *
+ *  Returns the promise so a caller can wait for the round trip. Nothing in the
+ *  app does — every trigger is fire-and-forget — but a test that cannot tell
+ *  "finished" from "not started" is a test that passes on a stale screen. */
 function runSync(loud) {
-  if (!globalThis.DSSync || !DSSync.enabled()) return;
+  if (!globalThis.DSSync || !DSSync.enabled()) return Promise.resolve();
   writeNow();
-  DSSync.sync(state)
+  // A function, not a value: a queued sync must read the state as it is when
+  // its turn comes, and adoptSynced replaces the object wholesale.
+  return DSSync.sync(() => state)
     .then(() => { if (loud) toast('Synced.'); })
     .catch((e) => { if (loud) toast(`Could not sync: ${e.message || 'no connection'}.`); });
 }
@@ -1391,8 +1421,10 @@ function renderSyncState() {
     : 'Sync is on, but nothing has reached the server yet.';
   keyEl.hidden = false;
   keyEl.textContent = DSSync.formatKey(s.key);
+  // No "sync now": it happens on open, on coming back to the app, and after
+  // every session. A button offering to do what already happened is a button
+  // that suggests it might not have.
   acts.innerHTML = '<button class="ghost" data-sync="copy">Copy key</button>'
-    + `<button class="ghost" data-sync="now"${syncBusy ? ' disabled' : ''}>Sync now</button>`
     + '<button class="ghost" data-sync="off">Turn off sync</button>';
 }
 
@@ -1880,7 +1912,6 @@ function wire() {
         .catch(() => toast('Could not copy — read the key off the screen instead.'));
       return;
     }
-    if (what === 'now') { runSync(true); return; }
     if (what === 'off') {
       if (!confirm('Turn off sync on this device?\n\nProgress stays here, and stays on the server for your other devices. Keep the key if you might turn it back on.')) return;
       DSSync.turnOff();

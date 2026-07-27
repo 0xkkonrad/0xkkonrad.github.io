@@ -293,6 +293,7 @@ async function rpc(fn, body) {
 
 let cfg = { sanitise: (s) => s, onMerged: () => {}, onStatus: () => {} };
 let running = null;
+let pending = null;
 let timer = null;
 
 function enabled() { return !!readLocal(); }
@@ -332,8 +333,21 @@ async function syncOnce(local) {
   }
 
   for (let i = 0; changed && i < MAX_ROUNDS; i++) {
-    const res = await rpc('sync_put',
-      { p_app: APP, p_key_hash: hash, p_rev: rev, p_data: state });
+    let res;
+    try {
+      res = await rpc('sync_put',
+        { p_app: APP, p_key_hash: hash, p_rev: rev, p_data: state });
+    } catch (e) {
+      // The server allows one write per key per second. Two triggers landing
+      // together — finishing a session and then immediately backgrounding the
+      // app — is not a failure, it is a reason to wait as long as it asked.
+      // Reporting it as one strands the change until something syncs again.
+      if (e.code === '53400' && i < MAX_ROUNDS - 1) {
+        await sleep(RETRY_WAIT);
+        continue;
+      }
+      throw e;
+    }
     const row = Array.isArray(res) ? res[0] : res;
     if (row && row.ok) {
       rev = num(row.rev);
@@ -355,11 +369,23 @@ async function syncOnce(local) {
 }
 
 /** Serialised: two syncs in flight would each merge against a blob the other is
- *  about to replace, and the loser's work would be written and then overwritten. */
-function sync(local) {
-  if (running) return running;
+ *  about to replace, and the loser's work would be written and then overwritten.
+ *
+ *  Serialised, not coalesced. Handing a second caller the in-flight promise
+ *  looks equivalent and is not: that sync was built from a snapshot taken
+ *  before whatever the caller is ringing about, so the change would sit
+ *  unsent until something else happened to trigger a sync. Queue behind it
+ *  instead, and read the state again when our turn comes — which is why
+ *  callers pass a function rather than a value. */
+function sync(source) {
+  if (running) {
+    if (!pending) {
+      pending = running.catch(() => {}).then(() => { pending = null; return sync(source); });
+    }
+    return pending;
+  }
   cfg.onStatus({ busy: true });
-  running = syncOnce(local)
+  running = syncOnce(typeof source === 'function' ? source() : source)
     .then((merged) => {
       cfg.onMerged(merged);
       cfg.onStatus({ busy: false, ok: true, at: Date.now() });
@@ -380,7 +406,7 @@ function sync(local) {
 function schedule(getState, ms) {
   if (!enabled()) return;
   clearTimeout(timer);
-  timer = setTimeout(() => { sync(getState()).catch(() => {}); }, ms || 5000);
+  timer = setTimeout(() => { sync(getState).catch(() => {}); }, ms || 5000);
 }
 
 function turnOn(key) {
