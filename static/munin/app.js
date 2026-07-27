@@ -80,7 +80,7 @@ function freshState() {
     // Light by default rather than following the system: the paper, the ink
     // outlines and the hard shadows are the design, and the derived dark set is
     // the fallback for people who go looking for it.
-    settings: { newPerDay: 20, maxRev: 120, shuffle: true, theme: 'light', examDate: EXAM_DEFAULT, examSkipped: false },
+    settings: { newPerDay: 20, maxRev: 120, shuffle: true, theme: 'auto', examDate: EXAM_DEFAULT, examSkipped: false },
   };
 }
 
