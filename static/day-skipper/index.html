@@ -111,6 +111,13 @@
         <div id="answer-wrap" aria-live="polite" hidden>
           <hr class="rule">
           <div class="answer" id="card-a" tabindex="-1"></div>
+          <!-- The labelled doodle for this card. Inline SVG stroked in
+               currentColor, so it follows the theme into dark mode and needs
+               no second asset. Built by src/figures.py. -->
+          <figure class="fig fig-doodle" id="card-figure" hidden>
+            <button class="plate" id="figure-plate" aria-label="Enlarge the drawing"></button>
+            <figcaption id="figure-cap"></figcaption>
+          </figure>
           <figure class="fig" id="card-fig" hidden>
             <button class="fig-btn" id="fig-btn">
               <img id="card-img" alt="" decoding="async">
@@ -277,6 +284,9 @@
   </div>
   <div class="lb-stage" id="lb-stage">
     <img id="lb-img" alt="">
+    <!-- Figures enlarge as vector rather than as a bitmap: the same markup the
+         card drew, scaled by the same pan-and-zoom transform. -->
+    <div class="lb-fig" id="lb-fig" hidden></div>
   </div>
   <p class="lb-hint" id="lb-hint">Pinch or double-tap to zoom · drag to pan</p>
 </div>

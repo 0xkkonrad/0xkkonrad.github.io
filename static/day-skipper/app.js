@@ -24,7 +24,7 @@ const EXPORT_APP = 'rya-day-skipper';
 const EXPORT_FORMAT = 1;
 // The exam this deck was built for. A fresh install starts here rather than
 // asking; it is changed in Progress, and clearing it goes back to plain spacing.
-const EXAM_DEFAULT = '2026-08-12';
+const EXAM_DEFAULT = '2026-09-12';
 // A <input type="date"> fires `change` on every keystroke in the year segment,
 // so typing 2026 walks through 0002, 0020 and 0202 on its way. Anything outside
 // this window is someone mid-keystroke, not a date they mean.
@@ -97,6 +97,7 @@ function doodle(name, cls, style) {
 }
 
 let DECK = null;                 // cards.json
+let FIGURES = null;              // figures.json — the labelled doodles
 let byId = new Map();
 let sectionOf = new Map();       // section key -> {t, n}
 let state = null;
@@ -534,6 +535,59 @@ function playerHtml(clip) {
 }
 
 /** The clips for the card on screen, under the answer. */
+/* Draw the card's labelled doodle, if it has one.
+ *
+ * The drawing is authored once in src/figures.py and reused across the cards
+ * that share it; `card.f.on` says which labels this card is asking about, and
+ * everything else on the drawing dims to context. With no `on` list every
+ * label lights, which is what a card wanting the whole picture means.
+ *
+ * The SVG body is trusted markup from the build, not user content, which is
+ * why it can go in as innerHTML — the same contract as the card text. */
+function figureSVG(card, cls) {
+  const def = FIGURES && FIGURES[card.f.n];
+  if (!def) return '';
+  return `<svg class="figure${cls ? ' ' + cls : ''}" viewBox="${def.vb}" role="img"`
+    + ` aria-label="${escAttr(figureAlt(card, def))}">${def.b}</svg>`;
+}
+
+/* Light the labels this card asked for. Everything else on the drawing stays,
+   dimmed — that is what lets one drawing serve several cards. */
+function litFigure(root, card) {
+  const on = card.f.on && card.f.on.length ? new Set(card.f.on) : null;
+  root.querySelectorAll('[data-l]').forEach((el) => {
+    el.classList.toggle('on', !on || on.has(el.getAttribute('data-l')));
+  });
+}
+
+function renderCardFigure(card) {
+  const box = $('#card-figure');
+  const def = card && card.f && FIGURES && FIGURES[card.f.n];
+  if (!def) {
+    box.hidden = true;
+    $('#figure-plate').innerHTML = '';
+    return;
+  }
+  const plate = $('#figure-plate');
+  plate.innerHTML = figureSVG(card);
+  litFigure(plate, card);
+  plate.setAttribute('aria-label', `Enlarge the drawing: ${stripTags(card.q)}`);
+  $('#figure-cap').textContent = def.cap + ' Tap to enlarge.';
+  box.hidden = false;
+}
+
+/* Screen readers get the terms the card is actually asking about, not a list
+   of everything drawn — the dimmed labels are context the eye skips. */
+function figureAlt(card, def) {
+  const spec = card.f;
+  const on = (spec.on && spec.on.length ? spec.on : def.l).map((s) => s.replace(/-/g, ' '));
+  return `${def.cap} Labelled: ${on.join(', ')}.`;
+}
+
+function escAttr(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
 function renderCardVideo(card) {
   const host = $('#card-video');
   const clips = clipsFor(card.i);
@@ -1018,6 +1072,8 @@ function showCard() {
   $('#card-q').innerHTML = card.q;
   $('#card-a').innerHTML = card.a;
 
+  renderCardFigure(card);
+
   const fig = $('#card-fig');
   if (card.m) {
     const img = $('#card-img');
@@ -1277,12 +1333,19 @@ function renderBrowse() {
   for (const c of hits.slice(0, browseLimit)) {
     const li = document.createElement('li');
     const sect = sectionOf.get(c.s);
+    const hasFig = !c.m && c.f && FIGURES && FIGURES[c.f.n];
     li.innerHTML = `<details><summary></summary><div class="browse-ans">${c.a}
       ${c.m ? `<img src="img/${encodeURIComponent(c.m)}" alt="Diagram: ${escapeHtml(stripTags(c.q))}" loading="lazy" width="${n(c.d[0])}" height="${n(c.d[1])}"><span class="b-zoom">Tap the diagram to enlarge</span>` : ''}
+      ${hasFig ? `<span class="b-fig">${figureSVG(c)}</span><span class="b-zoom">Tap the drawing to enlarge</span>` : ''}
       <span class="b-sect">${escapeHtml(sect ? sect.t : c.s)} · ${STATE_WORDS[stateOf(c.i)]}</span></div></details>`;
     li.querySelector('summary').innerHTML = c.q;
     if (c.m) {
       li.querySelector('img').addEventListener('click', () => openLightbox(c));
+    }
+    if (hasFig) {
+      const holder = li.querySelector('.b-fig');
+      litFigure(holder, c);
+      holder.addEventListener('click', () => openLightbox(c));
     }
     list.appendChild(li);
   }
@@ -1377,13 +1440,26 @@ function renderStats() {
 
 /* ─────────────────────────── lightbox ─────────────────────────── */
 
-const lb = { scale: 1, tx: 0, ty: 0, base: null, pointers: new Map(), lastTap: 0, pinch: null, opener: null };
+const lb = { scale: 1, tx: 0, ty: 0, base: null, pointers: new Map(), lastTap: 0, pinch: null, opener: null, node: null };
 
 function openLightbox(card) {
   const img = $('#lb-img');
+  const figBox = $('#lb-fig');
+  const isFig = !card.m && card.f && FIGURES && FIGURES[card.f.n];
   lb.opener = document.activeElement;
-  img.src = 'img/' + card.m;
-  img.alt = `Diagram: ${stripTags(card.q)}`;
+  img.hidden = !!isFig;
+  figBox.hidden = !isFig;
+  lb.node = isFig ? figBox : img;
+  $('#lb-stage').dataset.kind = isFig ? 'fig' : 'img';
+  if (isFig) {
+    img.removeAttribute('src');
+    figBox.innerHTML = figureSVG(card);
+    litFigure(figBox, card);
+  } else {
+    figBox.innerHTML = '';
+    img.src = 'img/' + card.m;
+    img.alt = `Diagram: ${stripTags(card.q)}`;
+  }
   $('#lb-title').textContent = stripTags(card.q).slice(0, 90);
   $('#lightbox').hidden = false;
   document.body.style.overflow = 'hidden';
@@ -1394,13 +1470,18 @@ function openLightbox(card) {
   // navigation, which pops a history entry the app was relying on.
   setBackgroundInert(true);
   const fit = () => {
-    lb.base = img.getBoundingClientRect();
+    lb.base = lb.node.getBoundingClientRect();
     const stage = $('#lb-stage').getBoundingClientRect();
     lb.base = { x: lb.base.x - stage.x, y: lb.base.y - stage.y, w: lb.base.width, h: lb.base.height };
     // These diagrams are dense line art. Fitting one into a phone screen makes the
     // labels unreadable, so open at a scale that gives the drawing room to be read
     // and let the reader pan, rather than opening at a useless "fits perfectly".
-    const wanted = Math.min(1000, img.naturalWidth / 2);
+    // A figure is drawn to be read at card size, so it opens to fit and zooms
+    // from there; a diagram is a dense reference page and opens already big.
+    const natural = isFig
+      ? Number(FIGURES[card.f.n].vb.split(/\s+/)[2]) || lb.base.w
+      : img.naturalWidth / 2;
+    const wanted = isFig ? lb.base.w : Math.min(1000, natural);
     lb.scale = clamp(wanted / Math.max(1, lb.base.w), 1, 4);
     // Open at the top-left corner, not the middle: every diagram puts its title
     // and first panel there, so that is where reading starts.
@@ -1409,7 +1490,7 @@ function openLightbox(card) {
     clampPan();
     apply();
   };
-  if (img.complete) requestAnimationFrame(fit);
+  if (isFig || img.complete) requestAnimationFrame(fit);
   else img.onload = () => requestAnimationFrame(fit);
   $('#lb-close').focus({ preventScroll: true });
   pushStop('lightbox');
@@ -1421,6 +1502,8 @@ function closeLightbox(fromHistory) {
   document.body.style.overflow = '';
   setBackgroundInert(false);
   $('#lb-img').removeAttribute('src');
+  $('#lb-fig').innerHTML = '';
+  lb.node = null;
   if (lb.opener && lb.opener.focus) lb.opener.focus({ preventScroll: true });
   if (!fromHistory && stops[stops.length - 1] === 'lightbox') history.back();
 }
@@ -1456,7 +1539,7 @@ function setBackgroundInert(on) {
 }
 
 function apply() {
-  $('#lb-img').style.transform = `translate(${lb.tx}px,${lb.ty}px) scale(${lb.scale})`;
+  if (lb.node) lb.node.style.transform = `translate(${lb.tx}px,${lb.ty}px) scale(${lb.scale})`;
   // The hint has to follow the zoom, or it tells you to double-tap to fit while
   // you are already looking at the whole diagram.
   const zoomed = lb.scale > 1.05;
@@ -1630,6 +1713,10 @@ function wire() {
   $('#fig-btn').addEventListener('click', () => {
     const c = currentCard();
     if (c && c.m) openLightbox(c);
+  });
+  $('#figure-plate').addEventListener('click', () => {
+    const c = currentCard();
+    if (c && c.f) openLightbox(c);
   });
   boundExamInputs();
   wireVideo('#card-video');
@@ -1902,6 +1989,13 @@ async function boot() {
   fetch('videos.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .then((v) => { if (v && v.clips && v.cards) VIDEOS = v; })
+    .catch(() => {});
+
+  // Same deal for the figures: a card with a missing drawing is a card with
+  // no drawing, never a card that fails to appear.
+  fetch('figures.json', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((f) => { if (f) { FIGURES = f; const c = currentCard(); if (c) renderCardFigure(c); } })
     .catch(() => {});
 
   $('#search').placeholder = `Search ${DECK.cards.length} cards…`;

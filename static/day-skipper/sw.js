@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'rya-ds-836cfd5bec';
+const V = 'rya-ds-8b68b0613d';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
@@ -38,6 +38,7 @@ const SHELL = [
   'app.css',
   'app.js',
   'cards.json',
+  'figures.json',
   'videos.json',
   'manifest.webmanifest',
   'fonts/dm-mono-400.woff2',
@@ -97,7 +98,8 @@ self.addEventListener('fetch', (e) => {
 
   // Card data and the clip map: network first so a rebuilt deck or a newly
   // attached clip arrives, cache as the fallback.
-  if (url.pathname.endsWith('cards.json') || url.pathname.endsWith('videos.json')) {
+  if (url.pathname.endsWith('cards.json') || url.pathname.endsWith('videos.json')
+      || url.pathname.endsWith('figures.json')) {
     e.respondWith(
       fetch(req).then((r) => {
         // Only a real deck gets cached. One 404 during a deploy used to become

@@ -47,6 +47,7 @@
   --bw: 2px;                      /* the outline weight the whole look rests on */
   --sh: 4px 4px 0 var(--stroke);
   --sh-sm: 3px 3px 0 var(--stroke);
+  --fig-blu: #1f5fa8;             /* water and wind, the one colour the app lacks */
   --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light;
 }
@@ -68,7 +69,7 @@
     --g2: #f0b64a;
     --g3: #5ed49a;
     --g4: #9d95ff;
-    --warn: #f0b64a;
+    --warn: #f0b64a; --fig-blu: #6fb2ff;
     color-scheme: dark;
   }
 }
@@ -79,6 +80,7 @@
   --line: #d5d1c6; --line-strong: #121214; --stroke: #121214;
   --text: #121214; --muted: #55555e; --accent: #3a30d8; --accent-ink: #fffdf7;
   --g1: #b8371f; --g2: #8f5a10; --g3: #276e46; --g4: #3a30d8; --warn: #a4581a;
+  --fig-blu: #1f5fa8;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -86,6 +88,7 @@
   --line: #343742; --line-strong: #f1efe8; --stroke: #f1efe8;
   --text: #f1efe8; --muted: #a6a7b2; --accent: #9d95ff; --accent-ink: #141519;
   --g1: #ff8a75; --g2: #f0b64a; --g3: #5ed49a; --g4: #9d95ff; --warn: #f0b64a;
+  --fig-blu: #6fb2ff;
   color-scheme: dark;
 }
 
@@ -362,6 +365,122 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
   background: none; border: 0;
 }
 #browse-clear { margin-left: 8px; }
+
+
+/* ── labelled doodles ────────────────────────────────────────────── */
+
+/* A figure is not a diagram. The diagrams in img/ are reference pages you
+   pinch-zoom; a figure is a small drawing that belongs to one card, drawn in
+   the same ink as the chrome doodles. No white plate under it: it is stroked
+   in currentColor on the card's own paper, so dark mode costs nothing and it
+   can use the theme's accent. Authored in src/figures.py. */
+.fig-doodle .plate {
+  display: block; width: 100%; padding: 12px 8px 8px;
+  background: var(--surface); border: var(--bw) solid var(--stroke);
+  border-radius: var(--r-sm); box-shadow: var(--sh-sm);
+  text-align: left;
+}
+button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
+
+/* In browse the drawing sits under the answer, same as a diagram does. */
+.b-fig {
+  display: block; margin: 12px 0 0; padding: 10px 6px 6px;
+  background: var(--surface); border: var(--bw) solid var(--stroke);
+  border-radius: var(--r-sm); cursor: zoom-in;
+}
+
+/* Enlarged, a figure is still vector: it is the card's own markup scaled by
+   the same transform the diagrams use, so it stays sharp at any zoom. */
+.lb-fig {
+  color: var(--text); width: min(96%, 900px); transform-origin: 0 0; will-change: transform;
+  background: var(--surface); border: var(--bw) solid var(--stroke);
+  border-radius: var(--r-sm); padding: 12px 10px 10px;
+}
+.lb-fig .figure { width: 100%; height: auto; }
+.figure {
+  display: block; width: 100%; height: auto;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+/* Labels sit on top of the drawing, so they are knocked out of it: the paper
+   colour is painted as a fat stroke *under* the glyphs. Without this every
+   label that crosses a rigging wire reads as struck through. */
+.figure text {
+  fill: var(--text); font-family: var(--mono); font-size: 15px; font-weight: 500;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+/* Labels the card is not asking about stay on the drawing but step back, so
+   one figure can serve several cards without answering their questions. The
+   dimming is opacity rather than a colour swap: it keeps port red and
+   starboard green recognisable while they are only context. */
+.figure [data-l] { opacity: .3; transition: opacity .18s ease; }
+/* Saturated colour survives dimming better than grey does, so a dimmed red
+   label still pulls the eye first. Colour steps back further than ink. */
+.figure text.c-red:not(.on), .figure text.c-grn:not(.on),
+.figure text.c-acc:not(.on), .figure text.c-blu:not(.on),
+.figure text.c-amb:not(.on) { opacity: .2; }
+/* Saturated colour survives dimming better than grey does, so a dimmed red
+   label still pulls the eye first. Colour steps back further than ink. */
+.figure text.c-red:not(.on), .figure text.c-grn:not(.on),
+.figure text.c-acc:not(.on), .figure text.c-blu:not(.on),
+.figure text.c-amb:not(.on) { opacity: .2; }
+.figure [data-l].on { opacity: 1; }
+/* The small print under a label is only ever about the label. Dimmed, it is
+   unreadable texture that makes the drawing look smudged — so it goes. */
+.figure text.f-note { stroke-width: 3px; }
+/* Only small print that belongs to a label disappears with it. Small print
+   with no label — a chart's scale numbers — is part of the drawing and stays,
+   or the one card that needs to read a position off the grid loses the grid. */
+.figure text.f-note[data-l]:not(.on) { opacity: 0; }
+
+.figure .f-thin { stroke: var(--line); stroke-width: 1.7; }
+.figure .f-dash { stroke: var(--line); stroke-width: 1.7; stroke-dasharray: 6 6; }
+.figure .f-dash-acc { stroke-dasharray: 5 5; stroke-width: 1.5; }
+.figure .f-lead { stroke-width: 1.5; }
+.figure .f-meas { stroke: var(--muted); stroke-width: 1.7; }
+.figure .f-rig { stroke-width: 1.4; }
+.figure .f-side { stroke-width: 3.4; }
+.figure .f-edge { stroke-width: 3.4; }
+.figure .f-cut { stroke-width: 1.6; stroke-dasharray: 7 5; }
+.figure .f-arc { stroke-width: 5; opacity: .55; }
+.figure .f-arc-on { stroke-width: 6; }
+.figure .f-wind { stroke: var(--fig-blu); stroke-width: 1.8; }
+.figure .f-brace { stroke-width: 1.6; }
+.figure .f-shore { stroke-width: 2.4; }
+.figure .f-boom { stroke-width: 2.4; }
+.figure .f-tie { stroke: var(--muted); stroke-width: 1.4; }
+.figure .f-arm { stroke-width: 2.6; }
+.figure .f-sail { fill: var(--surface-2); }
+.figure .f-pontoon { stroke-width: 3; }
+.figure .f-warp { stroke-width: 2.4; }
+.figure .f-fender { stroke: var(--muted); stroke-width: 1.6; fill: var(--surface-2); }
+.figure .f-jack { stroke-width: 2.6; stroke-dasharray: 10 5; }
+.figure .f-walk { stroke-width: 3; }
+.figure .f-wash { stroke-width: 2; stroke-dasharray: 9 5; }
+.figure .f-dash-red { stroke-dasharray: 6 5; stroke-width: 1.6; }
+.figure .fill-amb { fill: var(--g2); stroke: var(--stroke); }
+.figure .meas-on { stroke: var(--accent); stroke-width: 2; }
+
+/* Colour is only ever meaning here: the sides carry their light colours, the
+   flares carry theirs. Every one of these is a token the theme already tests
+   for contrast on both --surface and --bg. */
+/* The colour classes set a *stroke*, which on a <text> would repaint the paper
+   knockout in the label's own colour and fill in every counter. Text takes the
+   colour as fill and keeps the paper halo. */
+.figure .c-red { stroke: var(--g1); } .figure text.c-red { fill: var(--g1); stroke: var(--surface); }
+.figure .c-grn { stroke: var(--g3); } .figure text.c-grn { fill: var(--g3); stroke: var(--surface); }
+.figure .c-acc { stroke: var(--accent); } .figure text.c-acc { fill: var(--accent); stroke: var(--surface); }
+.figure .c-amb { stroke: var(--g2); } .figure text.c-amb { fill: var(--g2); stroke: var(--surface); }
+.figure .c-blu { stroke: var(--fig-blu); } .figure text.c-blu { fill: var(--fig-blu); stroke: var(--surface); }
+.figure .c-mut { stroke: var(--muted); } .figure text.c-mut { fill: var(--muted); stroke: var(--surface); }
+.figure .fill-red { fill: var(--g1); stroke: var(--stroke); }
+.figure .fill-grn { fill: var(--g3); stroke: var(--stroke); }
+.figure .fill-yel { fill: var(--flag); stroke: var(--stroke); }
+.figure .fill-blu { fill: var(--fig-blu); stroke: var(--stroke); }
+.figure .fill-ink { fill: var(--stroke); stroke: var(--stroke); }
+.figure .fill-pap { fill: var(--surface); stroke: var(--stroke); }
 
 /* ── study ───────────────────────────────────────────────────────── */
 
@@ -724,6 +843,9 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
   grid-template-columns: minmax(0, 1fr);
   touch-action: none; background: #fff;
 }
+/* The white stage is right for a scanned-looking diagram and wrong for a
+   figure, which is ink on the app's own paper. */
+.lb-stage[data-kind="fig"] { background: var(--bg); }
 .lb-stage img {
   max-width: 100%; max-height: 100%;
   transform-origin: 0 0; will-change: transform;
