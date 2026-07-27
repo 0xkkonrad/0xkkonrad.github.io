@@ -82,7 +82,8 @@ async function bootCourse(id) {
     boot.style.setProperty('--boot-anim', c.boot.anim || 'sail');
   }
   document.title = 'Munin — ' + c.title;
-  await loadScript(base + 'doodles.js');
+  // A course with no doodles.js gets the raven set — a slot is never a hole.
+  await loadScript(base + 'doodles.js').catch(() => { globalThis.DOODLE = MUNIN_DOODLE; });
   await loadScript('app.js');
   const h1 = document.getElementById('course-title');
   if (h1) h1.textContent = c.title.replace(/^RYA /, '');

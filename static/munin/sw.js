@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'munin-0a1';
+const V = 'munin-7e4fe2c768';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
