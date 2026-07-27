@@ -959,62 +959,23 @@ function renderLeechRow() {
  * whenever installing is possible, and there is nothing to dismiss — hiding a
  * setting from yourself is not a thing a setting should do. */
 
-// Chrome fires beforeinstallprompt once, early — before the deck has loaded and
-// so before any render. Held here until Progress is drawn.
-let installEvent = null;
-
-/* Listening at parse time, not from wire().
- *
- * wire() runs after the deck fetch in boot(). Chrome decides the
- * app is installable and fires beforeinstallprompt as soon as the manifest and
- * the worker are in hand, which on any visit with a warm cache is well before
- * that fetch settles. The event does not queue: with no listener attached it is
- * simply gone, installEvent stays null for the life of the page, and the offer
- * never appears — the exact bug this comment used to describe as handled. */
-addEventListener('beforeinstallprompt', (e) => {
-  // Stops Chrome's own mini-infobar, so the offer appears once, in the app's
-  // voice, on the screen it belongs on.
-  e.preventDefault();
-  installEvent = e;
-  if (current === 'stats' && state) renderInstall();
-});
-
-addEventListener('appinstalled', () => {
-  installEvent = null;
-  const card = document.getElementById('install-card');
-  if (card) card.hidden = true;
-});
-
-function isInstalled() {
-  // navigator.standalone is iOS's own, and the only signal there.
-  return matchMedia('(display-mode: standalone)').matches
-    || matchMedia('(display-mode: minimal-ui)').matches
-    || matchMedia('(display-mode: fullscreen)').matches
-    || navigator.standalone === true;
-}
-
-/** iOS has no install API at all, so the offer there is an instruction. */
-function isIOS() {
-  const ua = navigator.userAgent;
-  // iPadOS 13+ reports itself as a Mac. The touch points are the tell.
-  return /iPhone|iPad|iPod/.test(ua)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
+/* The event itself is captured in munin.js, at parse time. The shell is the
+ * only script that always runs: on the picker there is no course yet, so an
+ * app.js listener would be registered long after Chrome had fired and dropped
+ * it. Munin holds it and tells this screen when the answer changes; the picker
+ * draws the same offer for people who never open Settings. */
 
 function renderInstall() {
   const card = $('#install-card');
-  const btn = $('#install-btn');
-  const ios = isIOS();
-  // A browser that can neither prompt nor be told how, and an app already on the
-  // home screen, both have nothing to say here — so the section is not there.
-  const can = installEvent || ios;
-  if (!can || isInstalled()) {
+  // A browser that can neither prompt nor be told how, and an app already on
+  // the home screen, both have nothing to say here — so the section is not there.
+  if (!MuninInstall.offerable()) {
     card.hidden = true;
     return;
   }
   card.hidden = false;
-  btn.hidden = !installEvent;
-  $('#install-note').textContent = installEvent
+  $('#install-btn').hidden = !MuninInstall.event;
+  $('#install-note').textContent = MuninInstall.event
     ? 'It opens like an app, with no browser bar, and the cards work with no signal at all.'
     : 'Tap the share button, then “Add to Home Screen”. It then opens like an app, and the cards work with no signal at all.';
 }
@@ -2671,21 +2632,12 @@ function wire() {
       : `Restored ${known.length} cards of history.`);
   });
 
-  // beforeinstallprompt and appinstalled are listened for at the top of this
-  // file instead: by the time wire() runs the deck has been fetched, and the
-  // event has already come and gone.
+  // beforeinstallprompt and appinstalled are listened for in munin.js instead:
+  // by the time wire() runs a course has been picked and the deck fetched, and
+  // the event has long since come and gone.
   $('#install-btn').addEventListener('click', async () => {
-    // A prompt is single-use: Chrome rejects a second prompt() on the same event
-    // and fires a fresh beforeinstallprompt if the user declines. Declining also
-    // brings a fresh event, which puts the section back by itself.
-    const e = installEvent;
-    installEvent = null;
     $('#install-card').hidden = true;
-    if (!e) return;
-    try {
-      await e.prompt();
-      await e.userChoice;
-    } catch (err) { /* the browser closed its own dialog; nothing to record */ }
+    await MuninInstall.prompt();
   });
 
   $('#prefetch-btn').addEventListener('click', async () => {

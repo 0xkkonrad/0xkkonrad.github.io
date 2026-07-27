@@ -73,6 +73,94 @@ const MuninTheme = {
 };
 globalThis.MuninTheme = MuninTheme;
 
+/* ── installing ───────────────────────────────────────────────────────────
+ *
+ * Captured here, at parse time, because the shell is the only script that is
+ * always running: Chrome decides the app is installable and fires
+ * beforeinstallprompt as soon as the manifest and the worker are in hand —
+ * which on the shelf is before any course, and so before app.js exists. The
+ * event does not queue. With nobody listening it is simply gone for the life of
+ * the page, and the offer never appears anywhere. (Day Skipper shipped that bug
+ * once, from one screen; Munin's boot order would have re-earned it.)
+ *
+ * Munin holds the event; the picker and Settings both just draw it. */
+const MuninInstall = {
+  event: null,
+
+  installed() {
+    // navigator.standalone is iOS's own, and the only signal there.
+    return matchMedia('(display-mode: standalone)').matches
+      || matchMedia('(display-mode: minimal-ui)').matches
+      || matchMedia('(display-mode: fullscreen)').matches
+      || navigator.standalone === true;
+  },
+
+  /* iOS has no install API at all, so the offer there is instructions. */
+  ios() {
+    const ua = navigator.userAgent;
+    // iPadOS 13+ reports itself as a Mac. The touch points are the tell.
+    return /iPhone|iPad|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  },
+
+  /** Nothing to say to a browser that can neither prompt nor be told how. */
+  offerable() {
+    return !MuninInstall.installed() && (MuninInstall.event || MuninInstall.ios());
+  },
+
+  async prompt() {
+    // The event is single-use: Chrome invalidates it once prompt() is called,
+    // and fires a fresh one if the offer is declined.
+    const e = MuninInstall.event;
+    MuninInstall.event = null;
+    if (!e) return;
+    e.prompt();
+    await e.userChoice.catch(() => {});
+    MuninInstall.refresh();
+  },
+
+  /* Both places that draw the offer, kept honest whenever the answer changes. */
+  refresh() {
+    renderShelfInstall();
+    globalThis.renderInstall?.();
+  },
+};
+
+addEventListener('beforeinstallprompt', (e) => {
+  // Stops Chrome's own mini-infobar, so the offer appears once, in the app's
+  // voice, on a screen it belongs on.
+  e.preventDefault();
+  MuninInstall.event = e;
+  MuninInstall.refresh();
+});
+
+addEventListener('appinstalled', () => {
+  MuninInstall.event = null;
+  MuninInstall.refresh();
+});
+
+globalThis.MuninInstall = MuninInstall;
+
+/* The picker's copy of the offer. First run is the one moment the app can say
+ * "keep me" before anyone has picked anything, so it sits under the tiles —
+ * below the thing you came for, never in front of it. It needs no dismissal:
+ * installing removes it, and nothing else here is a nudge. */
+function renderShelfInstall() {
+  const card = document.getElementById('shelf-install');
+  if (!card) return;
+  if (!MuninInstall.offerable()) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const steps = card.querySelector('.shelf-install-steps');
+  const btn = card.querySelector('#shelf-install-btn');
+  btn.hidden = !MuninInstall.event;
+  steps.hidden = !!MuninInstall.event;
+  steps.innerHTML = MuninInstall.event ? ''
+    : '<li>tap the share button in the browser bar</li><li>choose \u201cAdd to Home Screen\u201d</li>';
+}
+
 function muninDoodle(name, cls, style) {
   const d = MUNIN_DOODLE[name] || MUNIN_DOODLE.perch;
   return `<svg class="dood ${cls || ''}" viewBox="0 0 32 32" fill="none" stroke="currentColor"
@@ -151,6 +239,23 @@ const SHELF_CSS = `
   .shelf-tile small { color: var(--muted); font-size: .8rem; text-transform: lowercase; }
   .shelf-tile.byo { border-style: dashed; border-left-width: var(--bw);
     box-shadow: none; color: var(--muted); justify-content: center; }
+  .shelf-install { margin-top: 26px; padding: 16px 18px 18px;
+    background: var(--surface); border: var(--bw) dashed var(--stroke);
+    border-radius: var(--r); }
+  .shelf-install[hidden] { display: none; }
+  .shelf-install b { display: block; font-weight: 500; font-size: .92rem;
+    text-transform: lowercase; }
+  .shelf-install p { margin: 4px 0 0; color: var(--muted); font-size: .8rem; }
+  .shelf-install-steps { margin: 10px 0 0; padding-left: 20px; color: var(--text);
+    font-size: .8rem; display: grid; gap: 4px; }
+  .shelf-install-steps[hidden] { display: none; }
+  .shelf-install-steps::marker, .shelf-install-steps li::marker { color: var(--muted); }
+  #shelf-install-btn { margin-top: 12px; width: 100%; min-height: var(--tap);
+    background: var(--surface); color: var(--text); font: inherit; font-size: .86rem;
+    text-transform: lowercase; cursor: pointer;
+    border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
+    box-shadow: var(--sh-sm); }
+  #shelf-install-btn[hidden] { display: none; }
   .shelf-note { margin-top: 22px; color: var(--muted); font-size: .78rem;
     text-transform: lowercase; text-align: center; }
   .shelf-btn { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px;
@@ -212,11 +317,19 @@ async function renderShelf(asOverlay) {
       ${metas.map(courseTile).join('')}
       <button type="button" class="shelf-tile byo" data-byo><span>+ your own deck</span></button>
     </div>
+    <div class="shelf-install" id="shelf-install" hidden>
+      <b>keep munin on your home screen</b>
+      <p>it opens like an app, with no browser bar, and the cards work with no signal at all.</p>
+      <ol class="shelf-install-steps"></ol>
+      <button type="button" id="shelf-install-btn" hidden>add to home screen</button>
+    </div>
     <p class="shelf-note">${asOverlay ? 'tap outside a tile to go back' : 'pick a course — it opens straight here next time'}</p>
   </div>`;
   document.body.appendChild(el);
   el.querySelector('#shelf-theme').addEventListener('click', () => MuninTheme.cycle());
+  el.querySelector('#shelf-install-btn').addEventListener('click', () => MuninInstall.prompt());
   MuninTheme.apply();
+  renderShelfInstall();
   if (asOverlay) el.addEventListener('click', (e) => {
     if (!e.target.closest('.shelf-tile')) el.remove();
   });
