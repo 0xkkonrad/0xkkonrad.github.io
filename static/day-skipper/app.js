@@ -54,6 +54,8 @@ let DECK = null;                 // cards.json
 let FIGURES = null;              // figures.json — the labelled doodles
 let byId = new Map();
 let sectionOf = new Map();       // section key -> {t, n}
+let groupOf = new Map();         // group key -> {t, n, s: [section keys]}
+let groupFor = new Map();        // section key -> group key
 let state = null;
 let session = null;
 let undoStack = [];
@@ -460,9 +462,10 @@ function isDue(id, now) {
 
 function counts(sectionKey) {
   const now = Date.now();
+  const test = scopeTest(sectionKey);
   let due = 0, fresh = 0, learning = 0, seen = 0, mature = 0;
   for (const c of DECK.cards) {
-    if (sectionKey && c.s !== sectionKey) continue;
+    if (!test(c)) continue;
     const r = state.recs[c.i];
     if (!r) { fresh++; continue; }
     seen++;
@@ -739,6 +742,16 @@ const SECTION_ART = {
   handling: 'wheel', passage: 'route', electronics: 'radar', environment: 'fish',
 };
 
+/* One drawing per group of sections, for the Browse index. Several repeat a
+ * drawing one of their own sections already uses — a group's emblem being the
+ * most obvious thing in it is the point, and the two never appear at the same
+ * size or in the same place. Keys come from src/groups.py, which is also what
+ * refuses to build a deck with a section in no group. */
+const GROUP_ART = {
+  hull: 'wheel', rules: 'crossing', fix: 'dividers', weather: 'moon',
+  landfall: 'lighthouse', trouble: 'flare', plan: 'route',
+};
+
 /* The frieze along the top of the home screen: ten drawings, filled in as the
  * deck gets started. It is the streak and the percentage said as a picture. */
 const FRIEZE_ART = ['boat', 'buoy', 'gull', 'wave', 'lighthouse', 'anchor', 'fish', 'knot', 'flag', 'compass'];
@@ -758,7 +771,7 @@ function renderFrieze() {
 function buildSession(sectionKey, opts) {
   opts = opts || {};
   const now = Date.now();
-  const pool = DECK.cards.filter((c) => !sectionKey || c.s === sectionKey);
+  const pool = DECK.cards.filter(scopeTest(sectionKey));
 
   const learning = pool.filter((c) => state.recs[c.i] && state.recs[c.i].st === 'l');
   let reviews = pool.filter((c) => isDue(c.i, now));
@@ -934,18 +947,42 @@ function renderLeechRow() {
 
 /* ── install ── */
 
-/* Whether this device has the app on its home screen is a fact about the device,
- * so it gets its own key and stays out of the synced state: adopting a laptop's
- * "already installed" would silence the nudge on a phone that never saw it.
- * See web/sync.js for what does travel. */
-const INSTALL_KEY = 'rya-ds/install-v1';
-// A dismissal is "not now", not "never". Long enough that it is not nagging,
-// short enough that someone who dismissed it in week one and is still opening
-// the deck in a browser tab a month later is offered it again.
-const INSTALL_SNOOZE = 30 * DAY;
+/* This lives in Settings, on the Progress screen, and not on Study.
+ *
+ * It used to be a card on the home screen, which made it a nudge: something you
+ * had not asked for, in the way of the button you came for. So it needed a
+ * "Not now", and the dismissal needed a thirty-day snooze, and the offer had to
+ * be withheld until you had answered a card so a first-time visitor was not
+ * asked to install an app they had not used. None of that is needed for a row
+ * in Settings. It is a control you go looking for, so it is simply there
+ * whenever installing is possible, and there is nothing to dismiss — hiding a
+ * setting from yourself is not a thing a setting should do. */
+
 // Chrome fires beforeinstallprompt once, early — before the deck has loaded and
-// so before any render. Held here until Home is drawn.
+// so before any render. Held here until Progress is drawn.
 let installEvent = null;
+
+/* Listening at parse time, not from wire().
+ *
+ * wire() runs after `await fetch('cards.json')` in boot(). Chrome decides the
+ * app is installable and fires beforeinstallprompt as soon as the manifest and
+ * the worker are in hand, which on any visit with a warm cache is well before
+ * that fetch settles. The event does not queue: with no listener attached it is
+ * simply gone, installEvent stays null for the life of the page, and the offer
+ * never appears — the exact bug this comment used to describe as handled. */
+addEventListener('beforeinstallprompt', (e) => {
+  // Stops Chrome's own mini-infobar, so the offer appears once, in the app's
+  // voice, on the screen it belongs on.
+  e.preventDefault();
+  installEvent = e;
+  if (current === 'stats' && state) renderInstall();
+});
+
+addEventListener('appinstalled', () => {
+  installEvent = null;
+  const card = document.getElementById('install-card');
+  if (card) card.hidden = true;
+});
 
 function isInstalled() {
   // navigator.standalone is iOS's own, and the only signal there.
@@ -963,31 +1000,14 @@ function isIOS() {
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-function installSnoozedUntil() {
-  try {
-    const v = JSON.parse(localStorage.getItem(INSTALL_KEY) || 'null');
-    return isPlainObject(v) ? n(v.at) + INSTALL_SNOOZE : 0;
-  } catch (e) {
-    return 0;   // Safari in private mode throws on localStorage; just show it.
-  }
-}
-
-function snoozeInstall() {
-  $('#install-card').hidden = true;
-  try {
-    localStorage.setItem(INSTALL_KEY, JSON.stringify({ at: Date.now() }));
-  } catch (e) { /* nothing to do; it reappears next month either way */ }
-}
-
 function renderInstall() {
   const card = $('#install-card');
   const btn = $('#install-btn');
   const ios = isIOS();
-  // Offered after the first card, not before it. A first-time visitor asked to
-  // install something they have not used yet says no, and the ask is spent.
-  const earned = state.answers > 0;
+  // A browser that can neither prompt nor be told how, and an app already on the
+  // home screen, both have nothing to say here — so the section is not there.
   const can = installEvent || ios;
-  if (!can || isInstalled() || !earned || Date.now() < installSnoozedUntil()) {
+  if (!can || isInstalled()) {
     card.hidden = true;
     return;
   }
@@ -1047,7 +1067,6 @@ function renderHome() {
   renderAskExam(c);
   renderExamBanner(c);
   renderLeechRow();
-  renderInstall();
 
   const list = $('#section-list');
   list.innerHTML = '';
@@ -1284,7 +1303,7 @@ function finish() {
   const left = Math.min(c.due, revRoom) + c.learning + Math.min(c.fresh, newRoom);
 
   $('#done-title').textContent = session.section
-    ? (sectionOf.get(session.section) || {}).t || 'Section done'
+    ? scopeName(session.section) || 'Section done'
     : 'Session finished';
   $('#done-line').textContent = left > 0
     ? `${left} more card${left === 1 ? '' : 's'} are ready across the deck.`
@@ -1292,7 +1311,8 @@ function finish() {
   $('#done-more').hidden = left === 0;
 
   // A boat under sail with four pen-strokes flying off it, instead of a tick.
-  const badge = (session.section && SECTION_ART[session.section]) || 'boat';
+  const sk = session.section || '';
+  const badge = SECTION_ART[sk] || GROUP_ART[sk.slice(2)] || 'boat';
   $('#done-tick').innerHTML = doodle(badge)
     + [[-30, -20], [30, -20], [-22, 18], [22, 18]]
       .map(([dx, dy], i) => `<i class="spark" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${(i * 0.07).toFixed(2)}s"></i>`)
@@ -1356,6 +1376,13 @@ const BROWSE_FIRST = 40;
 const BROWSE_PAGE = 60;
 let browseLimit = BROWSE_FIRST;
 const LEECH_FILTER = '★leech';
+/* A whole group is a browsing scope in its own right — "the 95 cards about the
+ * rules of the road" is a real thing to want to read. It shares the one filter
+ * control with the sections, so it needs a prefix that a section key can never
+ * collide with: `pilotage` is a section and `g:landfall` is the group holding
+ * it. Anything not prefixed, and not the leech sentinel, is a section. */
+const GROUP_AT = 'g:';
+const isGroup = (v) => v.slice(0, 2) === GROUP_AT;
 let browseHits = [];        // the whole result set, best matches first
 let browseTerms = [];       // what the rendered rows were marked against
 let browseCountSaid = '';   // last thing written to the status line
@@ -1527,8 +1554,30 @@ function markTerms(root, terms) {
 
 function scopeName(sk) {
   if (sk === LEECH_FILTER) return 'the cards that keep slipping';
+  if (isGroup(sk)) {
+    const g = groupOf.get(sk.slice(2));
+    return g ? g.t : sk;
+  }
   const s = sectionOf.get(sk);
   return s ? s.t : sk;
+}
+
+/** The sections a scope covers, deck order. Empty for anything that is not a
+ *  group, which is what tells the index apart from the list. */
+function scopeSections(sk) {
+  if (!sk || !isGroup(sk)) return [];
+  const g = groupOf.get(sk.slice(2));
+  return g ? g.s : [];
+}
+
+/** Which cards a scope key holds: '' is the whole deck, `terms` is one section,
+ *  `g:rules` is the four sections of a theme. Browse and the session builder
+ *  both go through this so they cannot disagree — a button offering to study
+ *  the 95 cards of a theme and then handing over 35 is the bug this prevents. */
+function scopeTest(key) {
+  const inside = new Set(scopeSections(key));
+  if (inside.size) return (c) => inside.has(c.s);
+  return (c) => !key || c.s === key;
 }
 
 /** The count on screen, and the same sentence spoken once you stop typing.
@@ -1600,7 +1649,9 @@ function appendRows(from) {
   // heading. On every row it was the same eleven words down the whole screen.
   // Only in deck order: results are sorted by relevance, so consecutive rows
   // rarely share a section and the "heading" would be back on two rows in three.
-  const grouped = !$('#sect-filter').value && !browseTerms.length;
+  // A whole theme is four sections of deck order, so it needs them most of all.
+  const scope = $('#sect-filter').value;
+  const grouped = !browseTerms.length && (!scope || isGroup(scope));
   let prev = list.lastElementChild ? list.lastElementChild.dataset.sect : '';
   const frag = document.createDocumentFragment();
   for (const hit of browseHits.slice(from, browseLimit)) {
@@ -1626,6 +1677,62 @@ function syncOpenLabel() {
   $('#browse-open').textContent = allOpen ? 'Close them again' : 'Open every answer';
 }
 
+/** Where "up" goes from a scope, or null where there is no up: the index itself,
+ *  the leech list, and a search all have nothing above them. A section goes up
+ *  to its own theme rather than to the index — the reason you are reading about
+ *  sound signals is usually the reason you want lights and shapes next. */
+function upFrom(sk) {
+  if (!sk || sk === LEECH_FILTER) return null;
+  if (isGroup(sk)) return { to: '' };
+  const g = groupFor.get(sk);
+  return g && groupOf.get(g) && groupOf.get(g).t ? { to: GROUP_AT + g } : { to: '' };
+}
+
+/* The deck writes its sections as "05 IRPCS — rules of the road". On a tile the
+ * number wants to be a small tag of its own rather than two characters of the
+ * name, and a tile is too narrow to spend them twice. */
+const SECT_NO = /^(\d+)\s+(.*)$/;
+
+/** The index: every section as a tile, under the theme it belongs to.
+ *
+ * Rebuilt from scratch each time rather than diffed. It is 24 buttons and it is
+ * only ever built while nothing is filtered or searched, so it is not on the
+ * path of anything that has to feel fast. */
+function renderBrowseIndex() {
+  const host = $('#browse-index');
+  host.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const g of groupOf.values()) {
+    const sec = document.createElement('section');
+    sec.className = 'bgroup';
+    const named = !!g.t;
+    sec.innerHTML = (named ? `<h2 class="bgroup-h">
+        ${doodle(GROUP_ART[g.k] || 'boat', 'bgroup-art')}
+        <span class="bgroup-t">${escapeHtml(g.t)}</span>
+        <button class="bgroup-all" data-scope="${escapeHtml(GROUP_AT + g.k)}"
+          aria-label="Read all ${n(g.n)} cards in ${escAttr(g.t)}">${n(g.n)} cards →</button>
+      </h2>` : '')
+      + '<ul class="btiles"></ul>';
+    const ul = sec.querySelector('.btiles');
+    for (const k of g.s) {
+      const s = sectionOf.get(k);
+      if (!s) continue;
+      const m = SECT_NO.exec(s.t);
+      const li = document.createElement('li');
+      li.innerHTML = `<button class="btile" data-scope="${escapeHtml(k)}"
+          aria-label="${escAttr(s.t)}, ${n(s.n)} cards. Read them.">
+        ${doodle(SECTION_ART[k] || 'boat', 'btile-art')}
+        ${m ? `<span class="btile-no">${escapeHtml(m[1])}</span>` : ''}
+        <span class="btile-name">${escapeHtml(m ? m[2] : s.t)}</span>
+        <span class="btile-n">${n(s.n)} cards</span>
+      </button>`;
+      ul.appendChild(li);
+    }
+    frag.appendChild(sec);
+  }
+  host.appendChild(frag);
+}
+
 function renderBrowse() {
   const sel = $('#sect-filter');
   const lc = leeches().length;
@@ -1639,20 +1746,33 @@ function renderBrowse() {
   if (sel.dataset.leeches !== shape) {
     sel.dataset.leeches = shape;
     const keep = sel.value;
+    // Grouped, in the same seven themes the index below is built from, with the
+    // whole theme offered above its sections. A flat run of twenty-four options
+    // asked you to know which section a question lives in before it could help.
+    const opt = (v, label) => `<option value="${escapeHtml(v)}">${escapeHtml(label)}</option>`;
     sel.innerHTML = '<option value="">All sections</option>' +
       (wantLeech ? `<option value="${LEECH_FILTER}">★ Keeps slipping (${n(lc)})</option>` : '') +
-      DECK.sections.map((s) => `<option value="${escapeHtml(s.k)}">${escapeHtml(s.t)}</option>`).join('');
+      [...groupOf.values()].map((g) =>
+        `<optgroup label="${escapeHtml(g.t || 'Sections')}">`
+        + (g.t ? opt(GROUP_AT + g.k, `All of ${g.t} (${n(g.n)})`) : '')
+        + g.s.map((k) => opt(k, (sectionOf.get(k) || {}).t || k)).join('')
+        + '</optgroup>').join('');
     sel.value = keep;
   }
   const raw = $('#search').value.trim();
   const sk = sel.value;
   const terms = queryTerms(raw);
+  // Nothing narrowed means the index, not the deck poured out in one column.
+  // The list is the answer to a question; the index is what you read when you
+  // do not have one yet.
+  const index = !sk && !terms.length;
+  const test = scopeTest(sk);
   const inScope = (c) => {
     if (sk === LEECH_FILTER) {
       const r = state.recs[c.i];
       return !!r && r.lp >= LEECH_AT;
     }
-    return !sk || c.s === sk;
+    return test(c);
   };
 
   let scope = 0;
@@ -1687,9 +1807,16 @@ function renderBrowse() {
   } else if (sk) {
     count = `${n(scope)} cards in ${scopeName(sk)}`;
   } else {
-    count = `${n(all)} cards`;
+    // Nothing narrowed: the index is on screen, so the honest count is of the
+    // things you can actually see and press, not of the cards behind them.
+    count = `${n(all)} cards in ${n(DECK.sections.length)} sections`;
   }
-  if (hits.length > BROWSE_FIRST) count += ` · showing ${n(Math.min(browseLimit, hits.length))}`;
+  // "showing 40" is about a paged list. On the index every section is on screen,
+  // and saying otherwise sent people looking for a Show more button that is not
+  // there and was never needed.
+  if (!index && hits.length > BROWSE_FIRST) {
+    count += ` · showing ${n(Math.min(browseLimit, hits.length))}`;
+  }
   sayCount(count);
   $('#browse-count').classList.toggle('nothing', !hits.length);
 
@@ -1697,7 +1824,12 @@ function renderBrowse() {
   // "Clear search and filter" threw away a typed query when the empty state had
   // just told you to clear the filter.
   const clear = $('#browse-clear');
-  clear.hidden = !(sk || terms.length);
+  const up = upFrom(sk);
+  // Two buttons that go to the same place is one button too many: from a theme,
+  // "← All sections" already is the clear. From a section they differ — back
+  // goes up to the theme, clear goes all the way out — so both earn their place.
+  const dup = !terms.length && up && !up.to;
+  clear.hidden = !(sk || terms.length) || dup;
   clear.textContent = sk && terms.length ? 'Clear search and filter'
     : terms.length ? 'Clear search' : 'Clear filter';
 
@@ -1712,9 +1844,18 @@ function renderBrowse() {
 
   // Filtering to a section is usually an attempt to work through it.
   const study = $('#browse-study');
-  const realSection = sk && sk !== LEECH_FILTER && !terms.length && hits.length;
-  study.hidden = !realSection;
-  if (realSection) study.textContent = `Study ${scopeName(sk)} →`;
+  const studiable = sk && sk !== LEECH_FILTER && !terms.length && hits.length;
+  study.hidden = !studiable;
+  if (studiable) study.textContent = `Study ${scopeName(sk)} →`;
+
+  // Up one level, which is not the same offer as Clear filter: from a section
+  // you almost always want its neighbours in the same theme, not all 537 cards.
+  const back = $('#browse-back');
+  back.hidden = !up;
+  if (up) {
+    back.textContent = '← ' + (up.to ? scopeName(up.to) : 'All sections');
+    back.dataset.to = up.to;
+  }
 
   // Reading position survives a re-render: this also runs when a sync lands or
   // another tab writes, and having the answer you were reading snap shut
@@ -1726,6 +1867,16 @@ function renderBrowse() {
 
   const list = $('#browse-list');
   list.innerHTML = '';
+  const host = $('#browse-index');
+  host.hidden = !index;
+  list.hidden = index;
+  if (index) {
+    if (!host.firstChild) renderBrowseIndex();
+    $('#browse-more').hidden = true;
+    $('#browse-open').hidden = true;
+    if (body) body.scrollTop = Math.min(wasAt, body.scrollHeight);
+    return;
+  }
   // Only once something is narrowed: opening all forty answers of an unfiltered
   // deck is not a thing anyone wants, and reading a section end to end is.
   $('#browse-open').hidden = !(hits.length && (sk || terms.length));
@@ -1902,6 +2053,7 @@ function renderStats() {
     : '';
   $('#build-line').textContent = `Deck build ${DECK.build} · ${DECK.cards.length} cards`;
   renderAch();
+  renderInstall();
   renderBackupState();
   renderSyncState();
 }
@@ -2209,6 +2361,19 @@ function wire() {
     const body = $('#s-browse .body');
     if (body) body.scrollTop = 0;
   };
+  /* Moving between the index, a theme and a section. The filter control is
+     still where the scope lives, so a tile and the dropdown cannot disagree
+     about what is on screen. */
+  const goScope = (v) => {
+    $('#sect-filter').value = v;
+    searchAgain();
+    // The tile that was pressed is now inside a hidden element, and a browser
+    // answers that by dropping focus on <body> — the far end of the document
+    // from the list it just opened. The heading is where arriving by tab lands
+    // too, so it is the one place that is right for both.
+    const h = $('#s-browse h1');
+    if (h) h.focus({ preventScroll: true });
+  };
   let searchTimer = null;
   $('#search').addEventListener('input', () => {
     clearTimeout(searchTimer);
@@ -2240,6 +2405,15 @@ function wire() {
   $('#browse-study').addEventListener('click', () => {
     const sk = $('#sect-filter').value;
     if (sk && sk !== LEECH_FILTER) startSession(sk, {});
+  });
+  $('#browse-back').addEventListener('click', (e) => {
+    goScope(e.currentTarget.dataset.to || '');
+  });
+  // One listener for twenty-four tiles and seven headings. Delegated because the
+  // index is rebuilt wholesale, and a listener per button would have to be too.
+  $('#browse-index').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-scope]');
+    if (b) goScope(b.dataset.scope);
   });
   $('#browse-open').addEventListener('click', () => {
     const rows = $$('#browse-list details');
@@ -2466,41 +2640,21 @@ function wire() {
       : `Restored ${known.length} cards of history.`);
   });
 
-  // The browser decides whether installing is possible and tells us here. The
-  // preventDefault stops Chrome's own mini-infobar, so the offer appears once,
-  // in the app's voice, on the screen it belongs on.
-  addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    installEvent = e;
-    if (current === 'home' && state) renderInstall();
-  });
-
-  addEventListener('appinstalled', () => {
-    installEvent = null;
-    $('#install-card').hidden = true;
-  });
-
+  // beforeinstallprompt and appinstalled are listened for at the top of this
+  // file instead: by the time wire() runs the deck has been fetched, and the
+  // event has already come and gone.
   $('#install-btn').addEventListener('click', async () => {
     // A prompt is single-use: Chrome rejects a second prompt() on the same event
-    // and fires a fresh beforeinstallprompt if the user declines.
+    // and fires a fresh beforeinstallprompt if the user declines. Declining also
+    // brings a fresh event, which puts the section back by itself.
     const e = installEvent;
     installEvent = null;
     $('#install-card').hidden = true;
     if (!e) return;
     try {
       await e.prompt();
-      const res = await e.userChoice;
-      // Declining the browser's own dialog is an answer. Asking again on the
-      // next render would be the third time of asking in one sitting.
-      if (!res || res.outcome !== 'accepted') snoozeInstall();
-    } catch (err) {
-      snoozeInstall();
-    }
-  });
-
-  $('#install-no').addEventListener('click', () => {
-    installEvent = null;
-    snoozeInstall();
+      await e.userChoice;
+    } catch (err) { /* the browser closed its own dialog; nothing to record */ }
   });
 
   $('#prefetch-btn').addEventListener('click', async () => {
@@ -2592,6 +2746,15 @@ async function boot() {
   $('#boot-art').innerHTML = doodle('boat');
   byId = new Map(DECK.cards.map((c) => [c.i, c]));
   sectionOf = new Map(DECK.sections.map((s) => [s.k, s]));
+  // An older cards.json in the cache has no groups. The index falls back to one
+  // unnamed group holding everything, which is the flat list of sections — worse
+  // than the grouping, but not a blank Browse screen while the worker catches up.
+  const gs = DECK.groups && DECK.groups.length
+    ? DECK.groups
+    : [{ k: 'all', t: '', s: DECK.sections.map((s) => s.k), n: DECK.cards.length }];
+  groupOf = new Map(gs.map((g) => [g.k, g]));
+  groupFor = new Map();
+  for (const g of gs) for (const s of g.s) groupFor.set(s, g.k);
   indexDeck();
 
   // drop history for cards that no longer exist

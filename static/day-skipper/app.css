@@ -379,18 +379,17 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .trouble span { font-weight: 500; font-size: .9rem; color: var(--warn); }
 .trouble small { color: var(--muted); font-size: .76rem; }
 
-/* The install nudge. Paper and ink like the rest, deliberately not accented:
-   it is an offer, and it sits on the same screen as the button you came for. */
-.install {
-  margin-top: 24px; padding: 12px 14px;
-  background: var(--surface); border: var(--bw) solid var(--stroke);
-  border-radius: var(--r);
-}
-.install-lead { margin: 0; font-weight: 500; font-size: .9rem; }
-.install-note { margin: 4px 0 12px; color: var(--muted); font-size: .78rem; line-height: 1.6; }
-/* One button and one link, so the link must not stretch like a .ghost does. */
-.install .btn-row .ghost { flex: 0 0 auto; }
-.install .btn-row { align-items: center; }
+/* Installing, in the run of settings on the Progress screen. No box and no
+   accent: it is one of Offline, Sync and Backup, and it reads as one of them —
+   a heading, a line of explanation, a button. The wrapper is a plain block so
+   that app.js can hide the heading along with the button when there is nothing
+   to offer; it carries no spacing of its own, and the margins of the heading
+   and the button collapse through it, so the run keeps its rhythm.
+   Not `display: contents`, which would beat the `hidden` attribute's own
+   `display: none` and leave the section showing on a browser that cannot
+   install anything. */
+.install-sect { margin: 0; }
+.install-sect[hidden] { display: none; }
 
 /* No .browse-list .empty rule: when nothing matches, the count line above the
    list says so and the recovery buttons sit beside it, rather than a sentence
@@ -764,6 +763,67 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 .browse-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; }
 .browse-acts .link-btn { padding-left: 0; padding-right: 0; }
 
+/* ── the browse index ──
+   Twenty-four sections in seven themes, each marked with the drawing it already
+   owns on the home screen. This is the screen you land on with no query: a wall
+   of 537 questions is a search result nobody asked for, and the dropdown that
+   used to be the only way out of it wanted you to know the answer first.
+
+   Tiles rather than rows because the drawing is the point — at two columns a
+   drawing can be 30px and still lead, where a row makes it a bullet. */
+.browse-index { padding-bottom: 8px; }
+.bgroup + .bgroup { margin-top: 26px; }
+
+.bgroup-h {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 10px; font-size: .82rem; font-weight: 500;
+  letter-spacing: .01em;
+  border-bottom: 2px dotted var(--line); padding-bottom: 8px;
+}
+.bgroup-t { flex: 1; }
+.bgroup-art { width: 22px; height: 22px; flex: none; color: var(--accent); }
+/* The count is the way in, not a statistic: pressing it reads the whole theme.
+   Right-aligned and arrowed so it does not read as part of the heading. */
+.bgroup-all {
+  flex: none; background: none; border: 0; padding: 6px 2px;
+  color: var(--accent); font: inherit; font-size: .74rem;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.bgroup-all:active { opacity: .6; }
+
+.btiles {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+.btile {
+  width: 100%; height: 100%; text-align: left;
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr auto;
+  gap: 2px 10px;
+  padding: 12px 12px 11px; min-height: 92px;
+  background: var(--surface); border: var(--bw) solid var(--stroke);
+  border-radius: var(--r-sm); box-shadow: var(--sh-sm);
+  font: inherit; color: var(--text);
+}
+.btile:active { transform: translate(2px, 2px); box-shadow: none; }
+.btile-art { grid-column: 1; grid-row: 1; width: 30px; height: 30px; color: var(--accent); }
+/* The section number, which the deck writes into the title. On a tile it is a
+   tag rather than the first two characters of a sentence. */
+.btile-no {
+  grid-column: 2; grid-row: 1; align-self: center; justify-self: start;
+  font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  border: var(--bw) solid var(--line); border-radius: 4px; padding: 0 5px;
+}
+.btile-name {
+  grid-column: 1 / -1; grid-row: 2;
+  margin-top: 7px; font-size: .82rem; font-weight: 500; line-height: 1.35;
+  /* Section names come out of the deck and say IRPCS and IALA. Never lowercased. */
+}
+.btile-n {
+  grid-column: 1 / -1; grid-row: 3;
+  margin-top: 3px; font-size: .7rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .browse-list { list-style: none; margin: 0; padding: 0; border-top: 2px dotted var(--line); }
 /* No rule ruling off an empty screen. */
 .browse-list:empty { border-top: 0; }
@@ -1009,6 +1069,7 @@ mark {
 @media (min-width: 720px) {
   .body, .searchbar, .top, .frieze { max-width: 680px; margin-inline: auto; width: 100%; }
   .tiles { grid-template-columns: repeat(3, 1fr); }
+  .btiles { grid-template-columns: repeat(3, 1fr); }
   .sections { grid-template-columns: 1fr; }
   .question { font-size: 1.7rem; }
   .frieze .dood { width: 30px; height: 30px; }

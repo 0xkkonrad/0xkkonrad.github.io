@@ -7,7 +7,7 @@
      the system preference here too, or the browser bar and the page disagree. -->
 <meta name="theme-color" id="theme-color" content="#f0eee7">
 <meta name="description" content="RYA Day Skipper revision — 537 spaced-repetition flashcards with diagrams. Works offline, keeps your progress on your device.">
-<title>RYA Day Skipper — flashcards</title>
+<title>RYA Day Skipper Flashcards</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
@@ -89,20 +89,6 @@
         <span></span>
         <small>Answering them again is not working — go and read them</small>
       </button>
-
-      <!-- Put it on the home screen. Hidden in the markup and only ever revealed
-           by app.js: whether this is possible at all is something only the
-           browser knows, and an app already installed must not nag you to
-           install it. The button is absent on iOS, which has no API for this and
-           gets the two-tap instruction instead. -->
-      <div class="install" id="install-card" hidden>
-        <p class="install-lead">Keep it on your home screen</p>
-        <p class="install-note" id="install-note"></p>
-        <div class="btn-row">
-          <button class="ghost" id="install-btn" hidden>Install</button>
-          <button class="link-btn" id="install-no">Not now</button>
-        </div>
-      </div>
 
       <h2 class="h-sect">Sections</h2>
       <ul class="sections" id="section-list"></ul>
@@ -216,6 +202,7 @@
            live region on the visible count read out a sentence per keystroke. -->
       <p class="sr" id="browse-say" role="status" aria-live="polite"></p>
       <div class="browse-acts">
+        <button class="link-btn" id="browse-back" hidden>← All sections</button>
         <button class="link-btn" id="browse-open" hidden>Open every answer</button>
         <button class="link-btn" id="browse-study" hidden></button>
         <button class="link-btn" id="browse-wide" hidden></button>
@@ -223,6 +210,9 @@
       </div>
     </div>
     <main class="body">
+      <!-- Shown instead of the list when nothing is searched or filtered: 537
+           questions in one column is not a thing anyone can browse. -->
+      <div class="browse-index" id="browse-index" hidden></div>
       <ul class="browse-list" id="browse-list"></ul>
       <button class="ghost wide" id="browse-more" hidden>Show more</button>
     </main>
@@ -273,6 +263,18 @@
           <input type="checkbox" id="set-shuffle">
           <span>Mix sections together <small>Stops you recognising an answer from the cards around it</small></span>
         </label>
+      </div>
+
+      <!-- Installing sits with the other things you set up, not on the study
+           screen: it is a control you come looking for, not a nudge. Hidden in
+           the markup and only ever revealed by app.js — whether this is possible
+           at all is something only the browser knows, and an app already
+           installed has nothing to offer. The button is absent on iOS, which has
+           no API for this and gets the two-tap instruction instead. -->
+      <div class="install-sect" id="install-card" hidden>
+        <h2 class="h-sect">Install</h2>
+        <p class="fineprint" id="install-note"></p>
+        <button class="ghost wide" id="install-btn" hidden>Add to home screen</button>
       </div>
 
       <h2 class="h-sect">Offline</h2>
