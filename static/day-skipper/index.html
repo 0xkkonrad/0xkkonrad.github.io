@@ -15,6 +15,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preload" href="fonts/dm-mono-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/dm-mono-500.woff2" as="font" type="font/woff2" crossorigin>
+<!-- The figure labels are hand-lettered; the drawings are stroked, so a late
+     font swap would reflow every label inside a fixed viewBox. -->
+<link rel="preload" href="fonts/architects-daughter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -249,12 +252,25 @@
       </p>
       <button class="ghost wide" id="prefetch-btn">Save all diagrams offline</button>
 
+      <h2 class="h-sect">Sync</h2>
+      <p class="fineprint">
+        Study on your phone and your laptop and keep one set of progress. Turn
+        it on here, then type the key it gives you into the other device. There
+        is no account and no email: the key is the only way in, so keep it, and
+        anyone you give it to shares your deck.
+      </p>
+      <p class="backup-state" id="sync-state"></p>
+      <p class="sync-key" id="sync-key" hidden></p>
+      <div class="btn-row" id="sync-actions"></div>
+      <input type="text" id="sync-join" hidden autocomplete="off"
+             autocapitalize="characters" spellcheck="false"
+             aria-label="Sync key from your other device">
+
       <h2 class="h-sect">Backup</h2>
       <p class="fineprint">
-        Your progress lives in this browser and nowhere else — nothing is
-        uploaded. Clearing site data wipes it, and so does a new phone. Export
-        writes a small JSON file you can email to yourself; restore reads it
-        back on any device.
+        A backup is a file you keep, and it works whether or not sync is on.
+        Export writes a small JSON file you can email to yourself; restore reads
+        it back on any device.
       </p>
       <p class="backup-state" id="backup-state"></p>
       <div class="btn-row">
@@ -305,6 +321,10 @@
   </span>
 </div>
 
+<!-- Before app.js: the sync module only defines things, and app.js wires it up
+     on boot, so it has to already be there. -->
+<script src="sync.js"></script>
+<script src="doodles.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

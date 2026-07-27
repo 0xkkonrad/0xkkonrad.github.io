@@ -5,7 +5,7 @@
  * rather than forced down on install — with a button in Progress → Offline to
  * pull the lot deliberately before you lose signal.
  */
-const V = 'rya-ds-8b68b0613d';
+const V = 'rya-ds-442e9b4c3b';
 const SCOPE = new URL('./', self.registration.scope).pathname;
 
 /** What we expect back for a given path. A 200 is not enough: a captive portal
@@ -37,11 +37,14 @@ const SHELL = [
   'index.html',
   'app.css',
   'app.js',
+  'doodles.js',
+  'sync.js',
   'cards.json',
   'figures.json',
   'videos.json',
   'manifest.webmanifest',
   'fonts/dm-mono-400.woff2',
+  'fonts/architects-daughter.woff2',
   'fonts/dm-mono-500.woff2',
   'icon-192.png',
   'icon-512.png',

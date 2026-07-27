@@ -24,6 +24,18 @@
   font-weight: 500; font-style: normal; font-display: swap;
 }
 
+/* The one non-mono face in the app, and it earns its place: it letters the
+   figures. A drawing-office hand is what a technical drawing has always been
+   labelled in, and a mono label on a hand-drawn figure reads as a machine
+   annotating someone else's sketch. `block` rather than `swap` because the
+   labels sit inside a fixed viewBox — a late swap would reflow every one of
+   them across the drawing they are pointing at. */
+@font-face {
+  font-family: "Architects Daughter";
+  src: url(fonts/architects-daughter.woff2) format("woff2");
+  font-weight: 400; font-style: normal; font-display: block;
+}
+
 :root {
   --bg: #f0eee7;
   --surface: #fffdf7;
@@ -49,6 +61,7 @@
   --sh-sm: 3px 3px 0 var(--stroke);
   --fig-blu: #1f5fa8;             /* water and wind, the one colour the app lacks */
   --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --hand: "Architects Daughter", "Bradley Hand", cursive;
   color-scheme: light;
 }
 
@@ -134,8 +147,14 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
    inherits the theme and needs no second asset for dark mode. The wrapper is
    what carries the size — a bare <svg> as a flex item ignores its own width. */
 .dood { display: inline-block; flex: none; line-height: 0; }
+/* One pen, and a fine one. The drawings are re-drawn by hand in the build, and
+   a hand-drawn line at 1.7 on a 22px doodle reads as a thick smudge; at 1.4 it
+   reads as a pen. The accent is the default ink for them — the places that
+   deliberately paint one grey, like a locked achievement, still win on
+   specificity. */
 .doodle { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor;
-  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.dood { color: var(--accent); }
 
 .frieze {
   display: flex; align-items: flex-end; justify-content: space-between;
@@ -397,16 +416,23 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
   border-radius: var(--r-sm); padding: 12px 10px 10px;
 }
 .lb-fig .figure { width: 100%; height: auto; }
+/* The drawing is indigo at one weight; the labels are ink. That split is the
+   whole idea: the figure is a drawing, the labels are writing on top of it.
+   The nine-step weight hierarchy this used to have is what made these read as
+   plotted however much the line wobbles, so it is gone — with two exceptions
+   below that carry meaning rather than emphasis. */
 .figure {
   display: block; width: 100%; height: auto;
-  fill: none; stroke: currentColor; stroke-width: 2;
+  fill: none; stroke: currentColor; stroke-width: 1.4;
   stroke-linecap: round; stroke-linejoin: round;
+  color: var(--accent);
 }
 /* Labels sit on top of the drawing, so they are knocked out of it: the paper
    colour is painted as a fat stroke *under* the glyphs. Without this every
    label that crosses a rigging wire reads as struck through. */
 .figure text {
-  fill: var(--text); font-family: var(--mono); font-size: 15px; font-weight: 500;
+  fill: var(--text); font-family: var(--hand); font-size: 15px; font-weight: 400;
+  letter-spacing: .01em;
   paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px;
   stroke-linejoin: round;
 }
@@ -416,16 +442,16 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
    dimming is opacity rather than a colour swap: it keeps port red and
    starboard green recognisable while they are only context. */
 .figure [data-l] { opacity: .3; transition: opacity .18s ease; }
-/* Saturated colour survives dimming better than grey does, so a dimmed red
-   label still pulls the eye first. Colour steps back further than ink. */
+/* A dimmed *label* needs more opacity than a dimmed line. The labels are set in
+   a handwriting face at 400 where they used to be mono at 500 — a much lighter
+   colour on the page — and 0.3 of it is a smudge rather than context. The
+   drawing dims to 0.3; the writing on it dims to 0.45. Coloured labels sit a
+   step below that: saturated colour survives dimming better than grey, so a
+   dimmed red label still pulls the eye first. */
+.figure text[data-l]:not(.on) { opacity: .45; }
 .figure text.c-red:not(.on), .figure text.c-grn:not(.on),
 .figure text.c-acc:not(.on), .figure text.c-blu:not(.on),
-.figure text.c-amb:not(.on) { opacity: .2; }
-/* Saturated colour survives dimming better than grey does, so a dimmed red
-   label still pulls the eye first. Colour steps back further than ink. */
-.figure text.c-red:not(.on), .figure text.c-grn:not(.on),
-.figure text.c-acc:not(.on), .figure text.c-blu:not(.on),
-.figure text.c-amb:not(.on) { opacity: .2; }
+.figure text.c-amb:not(.on) { opacity: .34; }
 .figure [data-l].on { opacity: 1; }
 /* The small print under a label is only ever about the label. Dimmed, it is
    unreadable texture that makes the drawing look smudged — so it goes. */
@@ -435,33 +461,40 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
    or the one card that needs to read a position off the grid loses the grid. */
 .figure text.f-note[data-l]:not(.on) { opacity: 0; }
 
-.figure .f-thin { stroke: var(--line); stroke-width: 1.7; }
-.figure .f-dash { stroke: var(--line); stroke-width: 1.7; stroke-dasharray: 6 6; }
-.figure .f-dash-acc { stroke-dasharray: 5 5; stroke-width: 1.5; }
-.figure .f-lead { stroke-width: 1.5; }
-.figure .f-meas { stroke: var(--muted); stroke-width: 1.7; }
+.figure .f-thin { stroke: var(--muted); stroke-width: 1.4; }
+/* Exception 1 of 2: a dash still means "construction line", "section cut" or
+   "not really there" — the waterline is dashed because it is a level, not a
+   part of the boat. Seven figures would lose that if the dashes went solid. */
+.figure .f-dash { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 6 6; }
+.figure .f-dash-acc { stroke-dasharray: 5 5; stroke-width: 1.4; }
+.figure .f-lead { stroke-width: 1.4; }
+.figure .f-meas { stroke: var(--muted); stroke-width: 1.4; }
 .figure .f-rig { stroke-width: 1.4; }
-.figure .f-side { stroke-width: 3.4; }
-.figure .f-edge { stroke-width: 3.4; }
-.figure .f-cut { stroke-width: 1.6; stroke-dasharray: 7 5; }
-.figure .f-arc { stroke-width: 5; opacity: .55; }
-.figure .f-arc-on { stroke-width: 6; }
-.figure .f-wind { stroke: var(--fig-blu); stroke-width: 1.8; }
-.figure .f-brace { stroke-width: 1.6; }
-.figure .f-shore { stroke-width: 2.4; }
-.figure .f-boom { stroke-width: 2.4; }
+.figure .f-side { stroke-width: 1.4; }
+.figure .f-edge { stroke-width: 1.4; }
+.figure .f-cut { stroke-width: 1.4; stroke-dasharray: 7 5; }
+/* Exception 2 of 2: the two arcs are a swept area rather than a line, and a
+   swept area at hairline is a scratch. They keep a weight, at low opacity. */
+.figure .f-arc { stroke-width: 4; opacity: .35; }
+.figure .f-arc-on { stroke-width: 5; opacity: .6; }
+.figure .f-wind { stroke: var(--fig-blu); stroke-width: 1.4; }
+.figure .f-brace { stroke-width: 1.4; }
+.figure .f-shore { stroke-width: 1.4; }
+.figure .f-boom { stroke-width: 1.4; }
 .figure .f-tie { stroke: var(--muted); stroke-width: 1.4; }
-.figure .f-arm { stroke-width: 2.6; }
+.figure .f-arm { stroke-width: 1.4; }
 .figure .f-sail { fill: var(--surface-2); }
-.figure .f-pontoon { stroke-width: 3; }
-.figure .f-warp { stroke-width: 2.4; }
-.figure .f-fender { stroke: var(--muted); stroke-width: 1.6; fill: var(--surface-2); }
-.figure .f-jack { stroke-width: 2.6; stroke-dasharray: 10 5; }
-.figure .f-walk { stroke-width: 3; }
-.figure .f-wash { stroke-width: 2; stroke-dasharray: 9 5; }
-.figure .f-dash-red { stroke-dasharray: 6 5; stroke-width: 1.6; }
+.figure .f-pontoon { stroke-width: 1.4; }
+.figure .f-warp { stroke-width: 1.4; }
+.figure .f-fender { stroke: var(--muted); stroke-width: 1.4; fill: var(--surface-2); }
+.figure .f-jack { stroke-width: 1.4; stroke-dasharray: 10 5; }
+.figure .f-walk { stroke-width: 1.4; }
+.figure .f-wash { stroke-width: 1.4; stroke-dasharray: 9 5; }
+.figure .f-dash-red { stroke-dasharray: 6 5; stroke-width: 1.4; }
 .figure .fill-amb { fill: var(--g2); stroke: var(--stroke); }
-.figure .meas-on { stroke: var(--accent); stroke-width: 2; }
+/* The accent used to mean "this is the bit the card is asking about". The
+   drawing is now that same indigo, so the highlight role moves to ink. */
+.figure .meas-on { stroke: var(--text); stroke-width: 1.8; }
 
 /* Colour is only ever meaning here: the sides carry their light colours, the
    flares carry theirs. Every one of these is a token the theme already tests
@@ -471,7 +504,10 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
    colour as fill and keeps the paper halo. */
 .figure .c-red { stroke: var(--g1); } .figure text.c-red { fill: var(--g1); stroke: var(--surface); }
 .figure .c-grn { stroke: var(--g3); } .figure text.c-grn { fill: var(--g3); stroke: var(--surface); }
-.figure .c-acc { stroke: var(--accent); } .figure text.c-acc { fill: var(--accent); stroke: var(--surface); }
+/* `c-acc` marked "this is the thing the card is asking about". The body of the
+   drawing is now that same indigo, so the highlight has to be the other ink or
+   it stops highlighting anything. */
+.figure .c-acc { stroke: var(--text); } .figure text.c-acc { fill: var(--text); stroke: var(--surface); }
 .figure .c-amb { stroke: var(--g2); } .figure text.c-amb { fill: var(--g2); stroke: var(--surface); }
 .figure .c-blu { stroke: var(--fig-blu); } .figure text.c-blu { fill: var(--fig-blu); stroke: var(--surface); }
 .figure .c-mut { stroke: var(--muted); } .figure text.c-mut { fill: var(--muted); stroke: var(--surface); }
@@ -533,7 +569,8 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 }
 .fig-btn:active { transform: translate(3px, 3px); box-shadow: none; }
 .fig-btn img { display: block; width: 100%; height: auto; }
-.fig figcaption { margin-top: 8px; font-size: .73rem; color: var(--muted); text-align: center; }
+.fig figcaption { margin-top: 8px; font-family: var(--hand); font-size: .82rem;
+  color: var(--muted); text-align: center; }
 .fig-missing {
   margin: 18px 0 0; padding: 12px 14px; font-size: .82rem; line-height: 1.55;
   border-radius: var(--r-sm); color: var(--muted);
@@ -816,6 +853,24 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn-row .ghost { flex: 1 1 150px; }
+
+/* The sync key is meant to be read off one screen and typed into another, so it
+   is set large, spaced, and in the mono face the whole app already loads. */
+.sync-key {
+  margin: 14px 0; padding: 14px;
+  border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--surface); box-shadow: 4px 4px 0 var(--stroke);
+  font-size: 1rem; letter-spacing: .08em; text-align: center;
+  word-break: break-all; user-select: all;
+}
+.sync-key[hidden] { display: none; }
+#sync-join {
+  width: 100%; margin: 14px 0; padding: 13px 14px;
+  border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: 1rem; letter-spacing: .08em; text-align: center;
+}
+#sync-join[hidden] { display: none; }
 
 /* ── lightbox ────────────────────────────────────────────────────── */
 
