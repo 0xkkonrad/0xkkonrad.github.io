@@ -2082,7 +2082,7 @@ function renderStats() {
   $('#set-exam').value = state.settings.examDate || '';
   const d = daysToExam();
   $('#exam-hint').textContent = d === null
-    ? 'Add your exam date and the app works out how many new cards a day you need to see all 537 in time.'
+    ? `Add your exam date and the app works out how many new cards a day you need to see all ${DECK.cards.length} in time.`
     : d < 0 ? 'That date has passed. Clear it to go back to normal spacing.'
       : `${longDate(state.settings.examDate)}. No card will be left longer than ${fmtDays(ceiling())} between reviews.`;
   const auto = newBudget();
