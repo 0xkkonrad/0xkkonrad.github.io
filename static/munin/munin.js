@@ -121,7 +121,10 @@ const SHELF_CSS = `
     background: var(--surface); color: var(--text); font: inherit; font-size: .78rem;
     text-transform: lowercase; cursor: pointer; border: var(--bw) solid var(--stroke);
     border-radius: 99px; box-shadow: var(--sh-sm); padding: 5px 12px; }
-  .shelf-btn .dood { width: 16px; height: 16px; }`;
+  .shelf-btn .dood { width: 16px; height: 16px; }
+  /* Mid-session the pill would sit on the study header; a session is not the
+   * moment to change course anyway. Home, Browse and Progress keep it. */
+  body:has(#s-study:not([hidden])) .shelf-btn { display: none; }`;
 
 let shelfCssOn = false;
 function ensureShelfCss() {
