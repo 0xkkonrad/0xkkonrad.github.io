@@ -8,8 +8,11 @@
  */
 
 export const CSS = `
+  /* Both insets, like every other surface pinned to the top of the screen:
+     without the top one the title and the ✕ sit under a notch's status bar. */
   .imp { position: fixed; inset: 0; z-index: 95; overflow-y: auto;
-    background: var(--bg); color: var(--text); padding: 24px 20px
+    background: var(--bg); color: var(--text);
+    padding: calc(24px + env(safe-area-inset-top)) 20px
     calc(28px + env(safe-area-inset-bottom)); }
   .imp-inner { max-width: 460px; margin: 0 auto; }
   .imp-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }

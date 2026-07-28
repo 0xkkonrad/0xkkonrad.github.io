@@ -330,10 +330,16 @@ export function openImporter() {
         return;
       }
     }
-    // The deck you just imported is the one you meant to study.
+    // The deck you just imported is the one you meant to study. Go through the
+    // shell so Back lands on the picker, while retaining the deep-link fallback
+    // for an older shell or a blocked resume-pointer write.
     try {
-      localStorage.setItem(globalThis.MUNIN.lastKey, id);
-      location.reload();
+      if (typeof globalThis.MUNIN.enter === 'function') {
+        globalThis.MUNIN.enter(id);
+      } else {
+        localStorage.setItem(globalThis.MUNIN.lastKey, id);
+        location.reload();
+      }
     } catch (e) {
       // The deck itself is safely committed. Open it through the one-shot deep
       // link so a failed convenience pointer cannot freeze this sheet and

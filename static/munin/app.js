@@ -603,15 +603,23 @@ function scheduled(rec, g) {
 /** Apply a grade. Returns 'stay' if the card should come back this session.
  *
  * `ivl` is the figure reveal() printed on the button that was pressed. Rolled
- * once there and passed in here, because a second roll is a second answer. */
-function grade(id, g, ivl) {
-  const rec = state.recs[id] || newRec();
-  const isNew = !state.recs[id];
+ * once there and passed in here, because a second roll is a second answer.
+ *
+ * `practising` is a session over cards that are not due yet, and it writes
+ * nothing down. The rules below still run — they are what decides whether a
+ * card comes back before this session ends — but they run on a copy that goes
+ * out of scope with the answer. Answering a card fifteen seconds after you
+ * last answered it used to grow its interval as though a day had passed, so a
+ * quiet afternoon of extra work pushed the whole deck out to the cap. */
+function grade(id, g, ivl, practising) {
+  const stored = state.recs[id];
+  const rec = practising ? Object.assign({}, stored || newRec()) : (stored || newRec());
+  const isNew = !stored;
   const wasReview = rec.st === 'r';
-  state.recs[id] = rec;
+  if (!practising) state.recs[id] = rec;
   rec.rp++;
 
-  if (wasReview) {
+  if (wasReview && !practising) {
     state.revTotal++;
     if (g > 1) state.revGood++;
   }
@@ -654,6 +662,11 @@ function grade(id, g, ivl) {
     // that are permanently "due now" and invisible to the forecast.
     rec.due = addCalendarDays(Date.now(), 1);
   }
+
+  // A practice round ends here. The day's numbers, the streak and the totals
+  // are the day's: none of this was work the plan asked for, and a streak kept
+  // alive on cards that were not due is a streak that means nothing.
+  if (practising) return outcome;
 
   if (isNew) state.newDone++;
   else if (wasReview) state.revDone++;
@@ -1189,7 +1202,9 @@ function buildSession(sectionKey, opts) {
     again: 0,
     good: 0,
     missed: [],                  // card ids whose first pass included Again
-    startedNew: fresh.length,
+    // Nothing is started in a practice round — the unseen cards in it are shown
+    // and forgotten — so the summary does not claim any were.
+    startedNew: opts.ahead ? 0 : fresh.length,
     revealed: false,
     reel: [],                   // clips for the cards graded Again or Hard
     reelCards: [],              // card ids, retained until a late clip map lands
@@ -1262,6 +1277,23 @@ function go(name) {
   // document: for a keyboard the next Tab leaves the page entirely. Land on the
   // heading of the screen that just appeared instead.
   if (name === 'browse') $('#s-browse h1').focus({ preventScroll: true });
+}
+
+/* Tapping a tab, as opposed to the app moving itself between screens.
+ *
+ * Home is the floor of a course and the tabs sit one press above it: Back from
+ * Browse or Progress comes home, and walking Browse → Progress → Browse is
+ * still one press deep, so it takes one press to leave whichever one you are
+ * looking at. Pressing Home unwinds that stop rather than pushing another —
+ * the same trip, through the same handler, as pressing Back. */
+function goTab(name) {
+  if (name === 'home') {
+    if (stops[stops.length - 1] === 'tab') { history.back(); return; }
+    go('home');
+    return;
+  }
+  go(name);
+  if (stops[stops.length - 1] !== 'tab') pushStop('tab');
 }
 
 /* ── home ── */
@@ -1407,13 +1439,16 @@ function renderHome() {
     // ahead branch adds a batch of not-yet-due reviews on top of them.
     const batch = aheadSize(null);
     const pace = newBudget();
-    btn.textContent = c.fresh && batch ? `Do ${batch} more now` : 'Study ahead';
+    // Called practice on the button, because that is what it is: the cards it
+    // hands over are ones you have already answered or have not met yet, and
+    // none of it counts. "Do 20 more now" read as twenty more off the plan.
+    btn.textContent = c.fresh && batch ? `Practise ${batch} now` : 'Practise ahead';
     btn.dataset.mode = 'ahead';
     $('#today-note').textContent = pace === 0 && c.fresh
       ? `New cards are switched off, so ${c.fresh} of ${DECK.cards.length} will stay unseen. Raise the daily number in Progress.`
       : c.fresh
-        ? `Today's ${pace} are done and nothing is due. You can do ${batch} more now. ${c.fresh} cards left to see.`
-        : 'Nothing is due. Studying ahead pulls forward the cards scheduled soonest — worth it the week before the exam, not before.';
+        ? `Today's ${pace} are done and nothing is due. You can practise ${batch} now: nothing you answer counts, and nothing moves. ${c.fresh} cards left to see.`
+        : 'Nothing is due. Practice pulls forward the cards scheduled soonest and leaves the schedule exactly where it is — worth it the week before the exam, not before.';
   }
 
   const today = countStudiedToday();
@@ -1501,7 +1536,12 @@ function startSession(sectionKey, opts) {
     toast(sectionKey ? 'Nothing to study in that section yet.' : 'Nothing to study right now.');
     return;
   }
-  if (extra) toast('These are extra cards, on top of today’s plan.');
+  // Two different things get called extra here, and only one of them counts:
+  // unseen cards are the deck being introduced early, cards pulled forward from
+  // a later day are practice. Said before the first question rather than found
+  // out afterwards from a due date that did not move.
+  if (session.ahead) toast('Practice: these are not due yet, so nothing you press moves them.');
+  else if (extra) toast('These are extra cards, on top of today’s plan.');
   settleDock(false);
   go('study');
   // "Keep going" from the summary starts a new session inside the same visit;
@@ -1518,6 +1558,11 @@ function leaveStudy(fromHistory) {
   if (current !== 'home') go('home');
   $('#study-all').focus({ preventScroll: true });
   if (!fromHistory && stops[stops.length - 1] === 'study') history.back();
+  // A session started from Browse has that tab's stop underneath it, and the
+  // screen it stands for is not on the screen any more. Home is the floor, so
+  // it goes too: left there, the next Back press pops a tab nobody is looking
+  // at and reads as a press the app swallowed.
+  else if (fromHistory && stops[stops.length - 1] === 'tab') history.back();
 }
 
 function currentCard() {
@@ -1663,6 +1708,10 @@ function reveal() {
   // continues from the right place.
   $('#card-a').focus({ preventScroll: true });
   const rec = state.recs[card.i];
+  // One line, both ways round: a practice session and an ordinary one can
+  // follow each other inside a single visit, and this is static markup.
+  $('#grade-ask').textContent = session.ahead
+    ? 'Practice — the schedule does not move' : 'Did you get it right?';
   // Rolled once, here: these are the intervals the buttons promise *and* the
   // ones the card gets, so answer() hands the pressed one back to grade().
   session.ivls = {};
@@ -1673,10 +1722,13 @@ function reveal() {
     // is holding both down, not a bug.
     const capped = d > 0 && d === ceiling() && daysToExam() !== null;
     const label = d === 0 ? 'soon' : fmtDays(d) + (capped ? ' max' : '');
-    $('#iv' + g).textContent = label;
+    // Practising promises nothing, so it prints nothing: these dates are the
+    // ones the card would get on a day it was actually due, and it is not.
+    $('#iv' + g).textContent = session.ahead ? '' : label;
     const btn = $(`.grade[data-g="${g}"]`);
-    btn.setAttribute('aria-label',
-      `${['', 'Again', 'Hard', 'Good', 'Easy'][g]} — see it again ${d === 0 ? 'later in this session' : 'in ' + label}`);
+    btn.setAttribute('aria-label', session.ahead
+      ? `${['', 'Again', 'Hard', 'Good', 'Easy'][g]} — practice, so this does not change when the card comes back`
+      : `${['', 'Again', 'Hard', 'Good', 'Easy'][g]} — see it again ${d === 0 ? 'later in this session' : 'in ' + label}`);
   }
   settleDock();
 }
@@ -1730,7 +1782,7 @@ function answer(g) {
     if (!session.reelCards.includes(id)) session.reelCards.push(id);
     addReelClips(id);
   }
-  const outcome = grade(id, g, session.ivls && session.ivls[g]);
+  const outcome = grade(id, g, session.ivls && session.ivls[g], session.ahead);
   // A clean run is consecutive cards without an Again, inside one session.
   if (g === 1) {
     if (!session.missed.includes(id)) session.missed.push(id);
@@ -1755,8 +1807,10 @@ function answer(g) {
   // The reveal button is back in the rectangle the grades just vacated.
   settleDock();
   // After the next card is on screen, so the unlock lands on top of the new
-  // question rather than the one just answered.
-  checkAchievements(sess);
+  // question rather than the one just answered. Never on a practice round: an
+  // unlock is a record of something you did, and nothing here was recorded —
+  // it would also be the one thing a practice round wrote to disk.
+  if (!sess.ahead) checkAchievements(sess);
 }
 
 function undo() {
@@ -1788,9 +1842,13 @@ function finish() {
   $('#done-title').textContent = session.section
     ? scopeName(session.section) || 'Section done'
     : 'Session finished';
-  $('#done-line').textContent = left > 0
-    ? `${left} more card${left === 1 ? '' : 's'} are ready across the deck.`
-    : nextDueLine();
+  // A practice round ends by saying what it said at the start, because this is
+  // the screen that would otherwise read as a day's work banked.
+  $('#done-line').textContent = session.ahead
+    ? 'That was practice. The deck is where you left it.'
+    : left > 0
+      ? `${left} more card${left === 1 ? '' : 's'} are ready across the deck.`
+      : nextDueLine();
   $('#done-more').hidden = left === 0;
 
   // The section's own drawing with four pen-strokes flying off it, instead
@@ -1804,7 +1862,7 @@ function finish() {
 
   lastReelCards = session.reelCards.slice();
   renderReel(session.reel.slice(0, 5));
-  checkAchievements(session);
+  if (!session.ahead) checkAchievements(session);
   // The lease is the hand-off boundary between whole-document writers. Commit
   // the final answer before another tab is allowed to start from storage.
   flushAndReleaseStudyLock();
@@ -2710,6 +2768,9 @@ addEventListener('popstate', () => {
   const top = stops.pop();
   if (top === 'lightbox') return closeLightbox(true);
   if (top === 'study') return leaveStudy(true);
+  // A tab is one press above the course's home screen, however many tabs you
+  // walked through to get to this one.
+  if (top === 'tab') return go('home');
   // No stop recorded. A reload leaves the pushed history entries behind while
   // `stops` starts empty, and a fragment link fires popstate of its own. Unwind
   // whatever is actually open rather than doing nothing, which reads as a Back
@@ -2926,7 +2987,7 @@ function applyTheme() {
 
 function wire() {
   let prefetchRequest = '';
-  $$('#nav button').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+  $$('#nav button').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.go)));
 
   $('#study-all').addEventListener('click', (e) => {
     startSession(null, e.currentTarget.dataset.mode === 'ahead' ? { ahead: true } : {});
@@ -3132,7 +3193,7 @@ function wire() {
     // was last searched — but the filter only after it, because go() renders,
     // and rendering is what puts the ★ option in the list to be chosen.
     $('#search').value = '';
-    go('browse');
+    goTab('browse');
     $('#sect-filter').value = LEECH_FILTER;
     renderBrowse();
   });

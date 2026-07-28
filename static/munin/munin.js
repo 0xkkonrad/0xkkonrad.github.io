@@ -741,8 +741,12 @@ async function mountReceipt(rec) {
 /* ── the shelf ───────────────────────────────────────────────────────────── */
 
 const SHELF_CSS = `
+  /* Both insets, the way .top and .lb-bar take them: this panel is pinned to
+     the physical edges of the screen, so on a notched phone in standalone the
+     wordmark and the theme button sat under the status bar. */
   .shelf { position: fixed; inset: 0; z-index: 90; overflow-y: auto;
-    background: var(--bg); color: var(--text); padding: 28px 20px
+    background: var(--bg); color: var(--text);
+    padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(28px + env(safe-area-inset-bottom)); display: none; }
   .shelf.on { display: block; }
   .shelf-inner { max-width: 430px; margin: 0 auto; }
@@ -964,16 +968,45 @@ function brokenTile(id) {
   </div>`;
 }
 
+/* How much of a deck you have actually answered, for the row on the shelf.
+ *
+ * A deck's name, its card count, its date and even its raven are all worked
+ * out from the deck itself, so importing the same file twice — which the
+ * importer offers, in as many words — left two rows that were the same down to
+ * the pixel. Removing the wrong one is two taps and there is no undo. What is
+ * on each of them is the one thing that differs, and it is the thing you would
+ * ask about anyway.
+ *
+ * A deck nobody has opened has no key at all, which is worth saying. A key we
+ * cannot read is not a claim about anything, and says nothing. */
+function deckProgress(id) {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(MUNIN.stateKey(id));
+  } catch (e) {
+    return '';
+  }
+  if (raw === null) return 'not started';
+  try {
+    const n = Object.keys(JSON.parse(raw).recs || {}).length;
+    return n ? `${n.toLocaleString('en-GB')} answered` : 'not started';
+  } catch (e) {
+    return '';
+  }
+}
+
 /* An imported deck is titled by whoever made the .apkg, so everything about it
  * on this screen is escaped. */
 function localTile(d) {
   const art = MUNIN_DOODLE[d.art] || MUNIN_DOODLE[MUNIN.theme.fallback];
+  const done = deckProgress(d.id);
   return `<div class="shelf-row">
     <button type="button" class="shelf-tile" data-course="${escHtml(d.id)}"
         style="--tile-accent:${escHtml(MUNIN.theme.accent.light)}">
       ${tileArt(art)}
       <span><b>${escHtml(d.title)}</b><small>your deck · ${Number(d.cards).toLocaleString('en-GB')
-      } cards · ${new Date(d.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</small></span>
+      } cards · ${new Date(d.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      }${done ? ' · ' + done : ''}</small></span>
     </button>
     <button type="button" class="shelf-del" data-del="${escHtml(d.id)}"
       data-name="${escHtml(d.title)}" aria-label="Remove ${escHtml(d.title)}">✕</button>
@@ -1197,8 +1230,7 @@ async function renderShelf(asOverlay, say) {
       closeOverlay();
       return;
     }
-    localStorage.setItem(MUNIN.lastKey, tile.dataset.course);
-    location.reload();
+    enterCourse(tile.dataset.course);
   });
 
   // Last, and only now: the shelf is on the page and every control on it
@@ -1258,6 +1290,99 @@ function registerWorker() {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+/* ── going places ──────────────────────────────────────────────────────────
+ *
+ * Two screens, one address. Entering a course is a fresh load — a course
+ * brings its own bundle, and the shell never loads a course file up front — so
+ * the picker and the course are two history entries over the same URL, and
+ * which of them an entry stands for is written on the entry. app.js stacks the
+ * screens inside a course on top of these (its `stops`); this is the floor
+ * underneath them.
+ */
+function place(where) {
+  const st = history.state;
+  // A stop app.js pushed that a reload mid-session left behind, with the course
+  // coming back up over it: app.js steps past those itself on the first press,
+  // and writing over one here would hide it from that. Landing on the picker
+  // instead means app.js is not coming, so there is nobody to hide it from.
+  if (st && st.stop && where === 'course') return;
+  if (st && st.munin === where) return;
+  history.replaceState({ munin: where }, '');
+}
+
+/* Opening a course, from a tile or from the end of an import. The picker keeps
+ * the entry it is on and the course goes on top of it, so Back comes back to
+ * the picker instead of out of the app.
+ *
+ * From an overlay, consume that overlay (plus an importer and tab stop when
+ * present) before reloading. Otherwise the old course or a vanished dialog is
+ * the next entry and the first Back press appears to do nothing. The overlay
+ * tokens are copied into the top state, so the exact number of entries to
+ * unwind is explicit rather than guessed from the DOM.
+ */
+function enterCourse(id) {
+  let remembered = true;
+  try {
+    localStorage.setItem(MUNIN.lastKey, id);
+  } catch (e) {
+    remembered = false;
+    console.warn('course can open, but could not become the resume target', e);
+  }
+
+  // A one-shot deep link still opens a committed imported deck when only the
+  // convenience pointer is blocked. replace() avoids leaving the finished
+  // importer as a dead history entry underneath it.
+  const load = () => {
+    if (remembered) location.reload();
+    else location.replace('./?course=' + encodeURIComponent(id));
+  };
+  const st = history.state || {};
+
+  if (st.muninShelf) {
+    let entries = 1; // the shelf overlay itself
+    if (st.muninImporter) entries++;
+    if (st.stop) entries++; // Browse/Progress (or another in-course stop)
+    addEventListener('popstate', load, { once: true });
+    history.go(-entries);
+    return;
+  }
+
+  // Importing from the full picker already has the right shelf entry beneath
+  // it. Turn the importer entry into the course instead of adding a third.
+  if (st.muninImporter) {
+    history.replaceState({ munin: 'course' }, '');
+    load();
+    return;
+  }
+
+  if (!history.state || st.munin === 'shelf') {
+    history.pushState({ munin: 'course' }, '');
+  }
+  load();
+}
+MUNIN.enter = enterCourse;
+
+/* Back out of a course, and Forward back into it.
+ *
+ * The press lands on the entry underneath without loading anything — the shell
+ * is still running the course it was running, and the entry now says shelf. So
+ * reload, which is the same fresh load entering a course is, in the other
+ * direction: the boot below reads the entry and draws the picker. */
+addEventListener('popstate', () => {
+  const want = history.state && history.state.munin;
+  const inCourse = !!globalThis.COURSE;
+  if (inCourse) {
+    if (want === 'shelf') location.reload();
+    return;
+  }
+  if (want !== 'course') return;
+  // Forward, back into the course this entry stands for — unless it stands for
+  // nothing, which is what a deck removed from under it leaves behind. Carry
+  // the press on down rather than spending it on an entry with no screen.
+  if (localStorage.getItem(MUNIN.lastKey)) location.reload();
+  else history.back();
+});
+
 (function main() {
   MuninTheme.apply();
   registerWorker();
@@ -1269,7 +1394,15 @@ function registerWorker() {
   // one tap on a dead link cost you the course you were in the middle of.
   const q = new URLSearchParams(location.search).get('course');
   const stored = localStorage.getItem(MUNIN.lastKey);
-  const target = q && known(q) ? q : stored;
+  /* The bare URL used to mean two things at once: "the picker" and "resume
+   * where I was". A Back press out of a course lands on it needing the first
+   * and would get the second — the course opening itself again, which is a
+   * press that does nothing. Which one it is, is written on the history entry
+   * (see place() and the popstate handler below), so the address can stay the
+   * one address the whole app lives at. A cold open has no entry state at all
+   * and still resumes; a deep link says what it wants out loud and wins. */
+  const backToShelf = !q && !!(history.state && history.state.munin === 'shelf');
+  const target = backToShelf ? null : (q && known(q) ? q : stored);
 
   /* ONE SHOT, and this is where it is spent. Entering a course is a reload,
    * which keeps the query string, so a parameter left in the address bar beat
@@ -1299,6 +1432,17 @@ function registerWorker() {
     : 'that course is not here');
 
   if (target && known(target)) {
+    /* A cold open resumes the last course, and Back out of a course is the
+     * picker — but on a cold open there is nothing underneath to come back to,
+     * so the picker is put there. Only where the entry is brand new: a reload
+     * of a course sits on an entry that already says "course", and a second
+     * copy on every reload would be a Back press per reload. Not under a deep
+     * link either — that Back belongs to whoever's page you were on. */
+    if (!q && history.state === null) {
+      history.replaceState({ munin: 'shelf' }, '');
+      history.pushState({ munin: 'course' }, '');
+    }
+    place('course');
     (isLocal(target) ? bootLocal(target) : bootCourse(target))
       // The course is already open at this point. A quota/security failure in
       // the small resume pointer must not be reported as if the deck failed to
@@ -1313,9 +1457,11 @@ function registerWorker() {
         // forgotten, and only if it is the thing that failed.
         console.error(e);
         if (stored === target) localStorage.removeItem(MUNIN.lastKey);
+        place('shelf');
         renderShelf(false, missing(target)).catch(console.error);
       });
   } else {
+    place('shelf');
     renderShelf(false, q ? missing(q) : '').catch(console.error);
   }
 })();
