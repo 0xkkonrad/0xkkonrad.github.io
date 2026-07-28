@@ -52,9 +52,10 @@
     <main id="main" class="body">
       <div class="ask-exam" id="ask-exam" hidden>
         <h2>When is your exam?</h2>
-        <p><span data-deck-size>The deck</span> is more than you can cram. Give the app a date and it works
-           out how many new cards a day you need, and stops scheduling anything
-           for after you have sat it.</p>
+        <!-- Written by app.js: what is true of a 537-card syllabus is not true
+             of an eleven-card deck someone just imported. -->
+        <p id="ask-why">Give the app a date and it works out how many new cards a
+           day you need, and stops scheduling anything for after you have sat it.</p>
         <label class="sr" for="home-exam">Exam date</label>
         <input type="date" id="home-exam">
         <p class="ask-parsed" id="home-exam-parsed"></p>
@@ -95,12 +96,14 @@
            twenty-four sections the same way; the app has one shape or none. -->
       <div id="section-list"></div>
 
-      <p class="fineprint">
-        Revision material, not a substitute for the course, the current almanac
-        or an up-to-date chart. Progress is stored on this device only.
-        Video clips by
-        <a href="https://www.tiktok.com/@maritimemaster" target="_blank" rel="noopener noreferrer">Maritime Master</a>,
-        used with a link back to each original.
+      <!-- What this deck is and is not, in the words of whoever built it:
+           course.json's `notice`. An almanac and an up-to-date chart are Day
+           Skipper's caveat, not Munin's, and printing them under a deck of
+           German verbs someone imported would be nonsense. Munin's own line is
+           the default. Filled by renderNotice(); the markup carries the
+           default so the page says something sane before app.js runs. -->
+      <p class="fineprint" id="notice">
+        Revision material. Progress is stored on this device only.
       </p>
     </main>
   </section>
@@ -242,7 +245,11 @@
       </p>
       <div id="mastery"></div>
 
-      <h2 class="h-sect">Ship's log</h2>
+      <!-- Munin calls this the hoard — a raven's. A course may call it
+           something in its own world (Day Skipper's is a ship's log) through
+           course.json's `hoard.title`, and rename and redraw the fourteen
+           entries under it; the rules that unlock them are Munin's. -->
+      <h2 class="h-sect" id="hoard-title">The hoard</h2>
       <p class="ach-count" id="ach-count"></p>
       <ul class="ach" id="ach-list"></ul>
 
@@ -279,13 +286,16 @@
         <button class="ghost wide" id="install-btn" hidden>Install</button>
       </div>
 
-      <h2 class="h-sect">Offline</h2>
-      <p class="fineprint" id="offline-note">
-        The cards work offline as soon as you have opened the app once. The 24
-        diagrams are about 2 MB and are saved as you meet them — pull them all
-        down now if you are heading somewhere without signal.
-      </p>
-      <button class="ghost wide" id="prefetch-btn">Save all diagrams offline</button>
+      <!-- Hidden until app.js has counted this deck's diagrams: how many there
+           are and whether there are any at all is a fact about the course, and
+           "the 24 diagrams are about 2 MB" was printed over a three-picture
+           deck and over imported decks with none, above a button that then
+           downloaded nothing. -->
+      <div class="offline-sect" id="offline-card" hidden>
+        <h2 class="h-sect">Offline</h2>
+        <p class="fineprint" id="offline-note"></p>
+        <button class="ghost wide" id="prefetch-btn">Save all diagrams offline</button>
+      </div>
 
       <h2 class="h-sect">Sync</h2>
       <p class="fineprint">
@@ -342,7 +352,22 @@
   <p class="lb-hint" id="lb-hint">Pinch or double-tap to zoom · drag to pan</p>
 </div>
 
-<div class="boot" id="boot"><span id="boot-art" aria-hidden="true"></span><p>Loading deck…</p></div>
+<!-- The loading screen. Munin's raven is the default scene and it is markup,
+     not something JavaScript fills in: this screen exists to cover the window
+     before app.js has run, so anything drawn from app.js is drawn exactly too
+     late. A course brings its own scene as courses/<id>/boot.html + boot.css,
+     which munin.js swaps in — and replays from localStorage on every later
+     visit, before the first paint. pathLength="1" lets one CSS rule draw any
+     path on, whatever its real geometry. -->
+<div class="boot" id="boot">
+  <div class="boot-scene" id="boot-scene" data-from="munin" aria-hidden="true">
+    <svg class="boot-raven" viewBox="0 0 32 32" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path pathLength="1" d="M9.7 9.7C9.8 9.7 9.9 9.9 10 10C10.2 10.1 10.3 10.3 10.5 10.4C10.7 10.6 10.9 10.7 11.1 10.8C11.3 10.9 11.3 11 11.5 11C11.6 11 11.8 10.8 11.9 10.6C12 10.5 12 10.3 12.1 10.1C12.1 9.9 12.3 9.5 12.2 9.4C12.1 9.2 11.8 9.3 11.5 9.3C11.3 9.3 11.1 9.2 10.8 9.2C10.6 9.2 10.4 9.2 10.2 9.2C10 9.2 9.8 9 9.7 9.1C9.6 9.2 9.7 9.6 9.7 9.7C9.7 9.8 9.6 9.6 9.7 9.7Z M7.8 10.5C7.9 10.1 8 8.7 8.3 7.9C8.6 7.2 9.1 6.6 9.7 6.3C10.3 5.9 11.1 5.7 11.9 5.6C12.6 5.6 13.3 5.8 14.1 6C14.9 6.2 15.7 6.5 16.5 6.9C17.2 7.3 17.9 7.9 18.5 8.4C19.1 9 19.7 9.5 20 10.2C20.3 11 20.1 12 20.2 12.8C20.3 13.6 20.5 14.5 20.6 15.1L20.8 16.4L21.6 16.3C22.1 16.4 22.9 16.8 23.6 17C24.3 17.2 25 17.3 25.7 17.5C26.5 17.6 27.5 17.7 28 17.9L28.3 18.4L26.7 18.8C26.1 19 25.4 19.2 24.6 19.3C23.8 19.5 22.7 19.8 22.1 19.9L20.8 19.7L20.8 20.5C20.7 21.1 20.5 22.2 20.2 22.8C20 23.4 19.8 23.8 19.3 24.2C18.7 24.5 17.9 24.6 17.1 24.7C16.3 24.8 15.1 24.7 14.3 24.7C13.5 24.7 13.1 25 12.4 24.7C11.8 24.5 11 23.8 10.3 23.2C9.7 22.7 9.2 22 8.7 21.4C8.2 20.9 7.8 20.6 7.6 20C7.3 19.4 7.2 18.6 7.2 17.9C7.1 17.3 7.1 16.6 7.1 15.9C7.1 15.2 7.2 14.6 7.2 13.9C7.3 13.2 7.3 12.4 7.3 11.8L7.7 10.3L7.8 10.5C7.8 10.6 7.7 11 7.8 10.5ZM7.9 10.3C7.8 10.3 7.2 10.4 6.9 10.5C6.6 10.6 6.4 10.7 6.1 10.8C5.9 10.9 5.7 11 5.5 11.1C5.3 11.2 5.1 11.2 4.8 11.2L3.7 11.6L3.5 11.6C3.7 11.7 4.2 11.8 4.4 11.9C4.7 12 4.9 12.3 5.3 12.4C5.6 12.5 5.9 12.5 6.3 12.6C6.6 12.6 7.1 12.6 7.4 12.6C7.7 12.6 8 12.5 8.1 12.5M13.4 25L13.4 28.2M17 25L17 28.2M13.4 28.2L11.8 29.4M13.4 28.2L14.8 29.4M17 28.2L15.4 29.4M17 28.2L18.4 29.4"/>
+    </svg>
+  </div>
+  <p id="boot-line">Loading…</p>
+</div>
 <div class="toast away" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Achievement unlocks. Own element rather than the toast: an unlock has a

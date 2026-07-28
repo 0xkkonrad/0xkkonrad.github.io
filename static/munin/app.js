@@ -1,4 +1,11 @@
-/* RYA Day Skipper flashcards.
+/* Munin — the review engine, over whichever course the shell has resolved.
+ *
+ * Everything here is Munin's and the same for every course: the scheduler, the
+ * screens, the session, the hoard's rules. What a course brings arrives on the
+ * COURSE global that munin.js sets — its deck, its art maps, its accent, its
+ * loading screen, and the names and drawings for the hoard. Nothing in this
+ * file may name a course, a subject, or a drawing from one course's set; the
+ * separation gate in tests/ fails the build if it does.
  *
  * No dependencies, no network after first load. Review history lives in
  * localStorage under one key, so it survives reloads but never leaves the device.
@@ -9,7 +16,7 @@
  */
 'use strict';
 
-const KEY = 'munin/' + COURSE.id + '/state/v1';
+const KEY = MUNIN.stateKey(COURSE.id);
 const DAY = 86400000;
 const MIN_EASE = 1.3, MAX_EASE = 2.8, MAX_IVL = 400;
 // Three lapses, not Anki's six: six never fires inside a few weeks of revision,
@@ -45,8 +52,21 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 /* The drawing goes inside a sized wrapper rather than being sized itself: an
  * <svg> that is a flex item ignores its own width and fills the slot, which put
  * ten 48px-tall boats across a 320px screen the first time this shipped. */
+/* A drawing is a string, and only a string. `DOODLE[name]` is an index into a
+ * plain object, so a course naming a drawing "constructor" or "toString" got a
+ * truthy non-path back and short-circuited every fallback below it — a blank
+ * drawing, no warning, and the gate could not see it because the gate looked
+ * the same way. */
+const pathOf = (set, name) => (typeof set[name] === 'string' ? set[name] : null);
+
 function doodle(name, cls, style) {
-  const d = DOODLE[name] || DOODLE[COURSE.fallback] || Object.values(DOODLE)[0];
+  // Munin's own set is consulted before the course's fallback: a name this
+  // course does not draw but Munin does — the raven the hoard's defaults are
+  // written in — is drawn by Munin, rather than collapsing into fourteen
+  // copies of one course drawing. The two key spaces do not overlap (the
+  // separation gate holds them apart), so this cannot capture a course's name.
+  const d = pathOf(DOODLE, name) || pathOf(MUNIN_DOODLE, name)
+    || pathOf(DOODLE, COURSE.fallback) || Object.values(DOODLE).find((v) => typeof v === 'string');
   return `<span class="dood ${cls || ''}"${style ? ` style="${style}"` : ''} aria-hidden="true">`
     + `<svg class="doodle" viewBox="0 0 32 32"><path d="${d}"/></svg></span>`;
 }
@@ -75,7 +95,7 @@ function freshState() {
     days: {},                    // dayKey -> answers, for the streak
     revTotal: 0,
     revGood: 0,
-    answers: 0,                  // every grade ever, for the ship's log
+    answers: 0,                  // every grade ever, for the hoard
     ach: {},                     // achievement id -> unlocked timestamp
     // Light by default rather than following the system: the paper, the ink
     // outlines and the hard shadows are the design, and the derived dark set is
@@ -88,6 +108,8 @@ function freshState() {
  * backup is the one place a string can reach these templates. */
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** "1 day", not "1 days" — the app counts down to a date, so it hits 1 often. */
+const plural = (v, word) => `${n(v)} ${n(v) === 1 ? word : word + 's'}`;
 
 /** Make any stored or imported blob safe to run on.
  *
@@ -148,7 +170,7 @@ function sanitise(raw) {
   s.revGood = Math.round(num(s.revGood, 0, s.revTotal, 0));
 
   // An older save has no lifetime counter. Sum the day history rather than
-  // starting at zero, or upgrading resets the ship's log for everyone.
+  // starting at zero, or upgrading resets the hoard for everyone.
   s.answers = Math.round(num(
     raw.answers,
     0, 1e9,
@@ -507,22 +529,31 @@ function fmtClock(sec) {
 }
 
 /* Poster frames come from the clip itself at t=1s rather than 54 extra image
- * files: preload="metadata" fetches a few tens of KB, not the video. */
+ * files: preload="metadata" fetches a few tens of KB, not the video.
+ *
+ * The path is COURSE.base like every other course asset. Root-relative it named
+ * a directory Munin has never had, so every thumbnail on a Day Skipper card was
+ * a dead request — inherited from the standalone app, where the course and the
+ * app root were the same folder. */
 function thumbHtml(clip, label) {
   return `<button class="vthumb" data-clip="${escapeHtml(clip.f)}"
       aria-label="Play ${escapeHtml(label || clip.t)} — ${fmtClock(clip.d)}">
-    <video src="video/${escapeHtml(clip.f)}#t=1" muted playsinline preload="metadata"></video>
+    <video src="${COURSE.base}video/${escapeHtml(clip.f)}#t=1" muted playsinline preload="metadata"></video>
     <span class="vplay" aria-hidden="true">▶</span>
     <span class="vlen">${fmtClock(clip.d)}</span>
   </button>`;
 }
 
 function playerHtml(clip) {
-  const by = VIDEOS.credit ? VIDEOS.credit.name : 'Maritime Master';
+  // Who made the clips is the course's business — videos.json says it, and
+  // course.json says it if videos.json does not. Munin used to carry one
+  // course's video credit as a literal in the engine.
+  const by = str(VIDEOS.credit && VIDEOS.credit.name,
+    str(COURSE.credit && COURSE.credit.name, 'the course'));
   // The credit row lives outside the black box so the box wraps the picture
   // exactly — inside, its own text was setting the player's width.
   return `<div class="vplayer">
-    <video src="video/${escapeHtml(clip.f)}" playsinline controls autoplay preload="auto"></video>
+    <video src="${COURSE.base}video/${escapeHtml(clip.f)}" playsinline controls autoplay preload="auto"></video>
   </div>
   <div class="vbar">
     <span class="vby">${escapeHtml(by)}${clip.u
@@ -558,6 +589,68 @@ function litFigure(root, card) {
   });
 }
 
+/* What a pen cannot draw. A draw-on works by hijacking stroke-dasharray, so a
+   stroke that is already dashed cannot keep its dash while it is being drawn —
+   and in these figures a dash carries meaning. Same for the swept arcs, which
+   are areas rather than lines, and the filled shapes, where hiding the outline
+   leaves the fill sitting there on its own. */
+/* Which elements cannot take a pen.
+ *
+ * A pen is stroke-dasharray, so anything already using dashes for meaning, or
+ * filled rather than drawn, has to fade instead. Half of that is the figure
+ * LANGUAGE and belongs here — a dash, a cut, a swept arc, a fill. The other
+ * half is whichever of a course's own nouns happen to be dashed or filled: its
+ * sails, its fenders, its jackstays. Those come from course.json's
+ * `figures.noPen`, because the class list and the stylesheet that styles it
+ * are the same course's business and they used to be able to disagree — the
+ * engine named f-sail and f-fender, and a course that drew neither still paid
+ * for them while a course that drew something else got no say at all. */
+const FIG_NO_PEN_ENGINE = ['f-dash', 'f-dash-acc', 'f-dash-red', 'f-cut', 'f-arc', 'f-arc-on'];
+const FIG_NO_PEN = new RegExp('(^|\\s)(' + FIG_NO_PEN_ENGINE
+  .concat(((COURSE.figures && COURSE.figures.noPen) || [])
+    .filter((c) => typeof c === 'string' && /^[a-z][a-z0-9-]*$/.test(c)))
+  .join('|') + '|fill-[a-z]+)(\\s|$)');
+
+/* Set a figure drawing itself.
+ *
+ * Which elements can take a pen is decided at render time rather than in the
+ * build: figures.json is generated by a course's own repository, and a rule
+ * applied here cannot fall out of step with a build nobody re-ran. It is one
+ * pass over ~40 elements when a card renders.
+ *
+ * Order matters twice. pathLength and the kind classes go on before anything is
+ * measured; --tgt is read after them and before `fig-draw`, so what it records
+ * is the element's resting opacity under this card's dimming — read it any
+ * later and it records whatever the animation happens to be showing, which for
+ * a label with a delay is zero, and every label then fades in to invisible. */
+function drawFigureOn(root) {
+  const svg = root.querySelector('.figure');
+  if (!svg) return;
+  svg.classList.remove('fig-draw');
+  const els = svg.querySelectorAll('path, text');
+  els.forEach((el) => {
+    const kind = el.tagName === 'text' ? 'lab'
+      : FIG_NO_PEN.test(el.getAttribute('class') || '') ? 'soft'
+        : 'pen';
+    el.classList.add(kind);
+    if (kind === 'pen') el.setAttribute('pathLength', '1');
+  });
+  /* getComputedStyle returns an empty declaration for an element that is not
+     being rendered — one still detached from the document, or inside a closed
+     <details>. Measuring there sets --tgt to nothing, every fade then ends at
+     full opacity, and the drawing finishes with all of its labels lit: the
+     dimming that lets one figure serve six cards, gone. So measure first, and
+     if the answer is not a real one, leave the figure alone. Static is already
+     correct; it simply does not animate. */
+  const tgt = [...els].map((el) => getComputedStyle(el).opacity);
+  if (tgt.some((v) => v === '')) return;
+  els.forEach((el, k) => el.style.setProperty('--tgt', tgt[k]));
+  // Reading the cascade above flushed style, so removing `fig-draw` and adding
+  // it back here is a restart rather than a no-op — which is what a figure
+  // being shown a second time needs.
+  svg.classList.add('fig-draw');
+}
+
 function renderCardFigure(card) {
   const box = $('#card-figure');
   const def = card && card.f && FIGURES && FIGURES[card.f.n];
@@ -572,6 +665,8 @@ function renderCardFigure(card) {
   plate.setAttribute('aria-label', `Enlarge the drawing: ${stripTags(card.q)}`);
   $('#figure-cap').textContent = def.cap + ' Tap to enlarge.';
   box.hidden = false;
+  // No drawFigureOn() here: this runs while #answer-wrap is still hidden.
+  // reveal() sets the drawing going, once the answer is on screen.
 }
 
 /* Screen readers get the terms the card is actually asking about, not a list
@@ -621,28 +716,52 @@ function wireVideo(rootSel) {
   });
 }
 
-/* ─────────────────────── the ship's log ─────────────────────── */
+/* ─────────────────────── the hoard ─────────────────────── */
+
+/* Every word below is a course's where a course cares and Munin's where it
+ * does not, so every one is taken only when it is the kind of thing it is
+ * supposed to be. A `notice` of `42` used to replace the whole fineprint with
+ * "42" rather than falling back to the line it exists to fall back to. */
+const str = (v, fallback) => (typeof v === 'string' && v ? v : fallback);
 
 /* Fourteen things worth noticing. They are all side effects of revising rather
  * than tasks of their own — nothing here asks you to study differently, and
- * none of them can be earned by opening the app and putting it down again. */
-const ACHIEVEMENTS = [
-  { id: 'cast-off', art: 'boat', t: 'cast off', d: 'answered your first card', test: (x) => x.answers >= 1 },
-  { id: 'underway', art: 'wave', t: 'underway', d: '50 cards answered', test: (x) => x.answers >= 50 },
-  { id: 'offshore', art: 'lighthouse', t: 'offshore', d: '250 cards answered', test: (x) => x.answers >= 250 },
-  { id: 'blue-water', art: 'chart', t: 'blue water', d: '1,000 cards answered', test: (x) => x.answers >= 1000 },
-  { id: 'streak-3', art: 'gull', t: 'three days running', d: 'studied three days in a row', test: (x) => x.streak >= 3 },
-  { id: 'streak-7', art: 'anchor', t: 'a week at sea', d: 'seven days in a row', test: (x) => x.streak >= 7 },
-  { id: 'streak-14', art: 'compass', t: 'salt in the veins', d: 'fourteen days in a row', test: (x) => x.streak >= 14 },
-  { id: 'clean-run', art: 'flag', t: 'clean run', d: '20 in a row without an again', test: (x) => x.clean >= 20 },
-  { id: 'night-watch', art: 'moon', t: 'night watch', d: 'answered a card between midnight and four', test: (x) => x.hour >= 0 && x.hour < 4 },
-  { id: 'dawn-patrol', art: 'sun', t: 'dawn patrol', d: 'answered a card before six in the morning', test: (x) => x.hour >= 4 && x.hour < 6 },
-  { id: 'all-sections', art: 'wheel', t: 'round the buoys', d: 'started every section in the deck', test: (x) => x.sections > 0 && x.touched >= x.sections },
-  { id: 'section-swept', art: 'buoy', t: 'section swept', d: 'seen every card in one section', test: (x) => x.swept >= 1 },
-  { id: 'knot-untangled', art: 'knot', t: 'knot untangled', d: 'a card that kept slipping is solid again', test: (x) => x.tamed },
-  { id: 'deck-met', art: 'fish', t: 'every card met', d: 'seen every card in the deck at least once', test: (x) => x.deckSeen },
+ * none of them can be earned by opening the app and putting it down again.
+ *
+ * The RULES are Munin's: what counts as a streak is not a matter of subject.
+ * The NAMES and the DRAWINGS are the course's, because they are theme — a
+ * course names them in its own world through course.json's `hoard.items`, and
+ * what is written here is Munin's own, in the raven's vocabulary. That split
+ * is not decoration: this list used to be nautical and drawn from Day
+ * Skipper's doodle set, so every imported deck showed the same fourteen
+ * drawings of a raven under fourteen sailing captions. */
+const HOARD = [
+  { id: 'cast-off', art: 'perch', t: 'first card', d: 'answered your first card', test: (x) => x.answers >= 1 },
+  { id: 'underway', art: 'flap', t: 'fifty', d: '50 cards answered', test: (x) => x.answers >= 50 },
+  { id: 'offshore', art: 'carry', t: 'two hundred and fifty', d: '250 cards answered', test: (x) => x.answers >= 250 },
+  { id: 'blue-water', art: 'hoard', t: 'a thousand', d: '1,000 cards answered', test: (x) => x.answers >= 1000 },
+  { id: 'streak-3', art: 'peek', t: 'three days running', d: 'studied three days in a row', test: (x) => x.streak >= 3 },
+  { id: 'streak-7', art: 'roost', t: 'a week of it', d: 'seven days in a row', test: (x) => x.streak >= 7 },
+  { id: 'streak-14', art: 'strut', t: 'a fortnight', d: 'fourteen days in a row', test: (x) => x.streak >= 14 },
+  { id: 'clean-run', art: 'bow', t: 'clean run', d: '20 in a row without an again', test: (x) => x.clean >= 20 },
+  { id: 'night-watch', art: 'puff', t: 'small hours', d: 'answered a card between midnight and four', test: (x) => x.hour >= 0 && x.hour < 4 },
+  { id: 'dawn-patrol', art: 'quill', t: 'first light', d: 'answered a card before six in the morning', test: (x) => x.hour >= 4 && x.hour < 6 },
+  { id: 'all-sections', art: 'prints', t: 'every corner', d: 'started every section in the deck', test: (x) => x.sections > 0 && x.touched >= x.sections },
+  { id: 'section-swept', art: 'nest', t: 'a section swept', d: 'seen every card in one section', test: (x) => x.swept >= 1 },
+  { id: 'knot-untangled', art: 'worm', t: 'unstuck', d: 'a card that kept slipping is solid again', test: (x) => x.tamed },
+  { id: 'deck-met', art: 'shell', t: 'every card met', d: 'seen every card in the deck at least once', test: (x) => x.deckSeen },
 ];
+
+/* A course may rename and redraw any of them, and say nothing about the rest.
+ * Only the three theme fields are taken: a course cannot supply a `test`, and
+ * an unknown id in course.json names nothing and does nothing. */
+const HOARD_ITEMS = (COURSE.hoard && COURSE.hoard.items) || {};
+const ACHIEVEMENTS = HOARD.map((a) => {
+  const o = HOARD_ITEMS[a.id] || {};
+  return Object.assign({}, a, { t: str(o.t, a.t), d: str(o.d, a.d), art: str(o.art, a.art) });
+});
 const ACH_IDS = new Set(ACHIEVEMENTS.map((a) => a.id));
+const HOARD_TITLE = str(COURSE.hoard && COURSE.hoard.title, 'The hoard');
 
 /** Everything the tests above need, worked out once per answer. 537 cards is
  *  cheap enough to walk; keeping partial counters in state would be one more
@@ -729,6 +848,8 @@ function dismissUnlock() {
 }
 
 function renderAch() {
+  const h = $('#hoard-title');
+  if (h) h.textContent = HOARD_TITLE;
   const got = ACHIEVEMENTS.filter((a) => state.ach[a.id]).length;
   $('#ach-count').textContent = got
     ? `${got} of ${ACHIEVEMENTS.length} earned. They unlock as you revise — there is nothing to collect deliberately.`
@@ -763,7 +884,10 @@ function renderFrieze() {
   const seen = DECK.cards.filter((c) => state.recs[c.i]).length;
   const filled = seen === 0 ? 0 : Math.max(1, Math.round((seen / DECK.cards.length) * FRIEZE_ART.length));
   el.innerHTML = FRIEZE_ART
-    .map((k, i) => doodle(k, i < filled ? '' : 'unearned', `animation-delay:${(i * 0.19).toFixed(2)}s`))
+    // The index, not a delay: each drawing runs an entrance and an idle, and a
+    // single inline `animation-delay` would set both of them — starting the
+    // idle before the hop it is supposed to follow. app.css does the sums.
+    .map((k, i) => doodle(k, i < filled ? '' : 'unearned', `--i:${i}`))
     .join('');
 }
 
@@ -1013,7 +1137,8 @@ function renderHome() {
     $('#today-note').textContent = !c.fresh
       ? 'You have seen every card at least once. From here it is all repeats.'
       : pace > 0
-        ? `At ${pace} new cards a day you will have seen all ${DECK.cards.length} in ${daysToSeeAll(c.fresh)} days.`
+        ? `At ${pace} new cards a day you will have seen all ${DECK.cards.length} in ${
+          plural(daysToSeeAll(c.fresh), 'day')}.`
         : `New cards are switched off, so ${c.fresh} of ${DECK.cards.length} will stay unseen. Raise the daily number in Progress.`;
   } else {
     const batch = Math.min(AHEAD_BATCH, c.fresh || AHEAD_BATCH);
@@ -1139,7 +1264,8 @@ function showCard() {
   const rec = state.recs[card.i];
   $('#leech-chip').hidden = !(rec && rec.lp >= LEECH_AT);
 
-  // Card HTML is generated by src/web_build.py, which allows only b/i/u/br/sub/sup.
+  // Card HTML is generated by the course build through content/mdc.py, which
+  // allows b/i/u/br/sub/sup, lists, and safe links — nothing else.
   $('#card-q').innerHTML = card.q;
   $('#card-a').innerHTML = card.a;
 
@@ -1148,8 +1274,15 @@ function showCard() {
   const fig = $('#card-fig');
   if (card.m) {
     const img = $('#card-img');
-    img.width = card.d[0];
-    img.height = card.d[1];
+    // `d` is owed whenever `m` is present, but a deck that shipped without it
+    // should cost the layout reservation, not the card.
+    if (card.d) {
+      img.width = card.d[0];
+      img.height = card.d[1];
+    } else {
+      img.removeAttribute('width');
+      img.removeAttribute('height');
+    }
     img.alt = `Diagram: ${stripTags(card.q)}`;
     // Offline with an uncached diagram, this used to be a broken-image icon
     // under a caption inviting you to tap it, and the lightbox opened empty.
@@ -1199,6 +1332,12 @@ function reveal() {
   $('#grade-ask').hidden = false;
   $('#card-scroll').classList.add('shown');
   renderCardVideo(card);
+  // The drawing is set going here rather than in renderCardFigure, because the
+  // figure lives inside #answer-wrap and that is hidden until this moment: an
+  // element nobody is rendering cannot be measured and does not animate. It is
+  // also simply the better place — the drawing draws itself as the answer
+  // arrives, which is when you are looking at it.
+  drawFigureOn($('#figure-plate'));
   // The reveal button was the focused element and has just been hidden, which
   // drops focus to <body>. Put it on the answer so it is read out and so Tab
   // continues from the right place.
@@ -1294,7 +1433,8 @@ function finish() {
     : nextDueLine();
   $('#done-more').hidden = left === 0;
 
-  // A boat under sail with four pen-strokes flying off it, instead of a tick.
+  // The section's own drawing with four pen-strokes flying off it, instead
+  // of a tick — whatever that course draws for the thing just finished.
   const sk = session.section || '';
   const badge = SECTION_ART[sk] || GROUP_ART[sk.slice(2)] || COURSE.fallback;
   $('#done-tick').innerHTML = doodle(badge)
@@ -1589,7 +1729,7 @@ function browseRow(hit, terms, withSection) {
   li.innerHTML = `<details><summary><span class="b-head"><span class="b-where" hidden></span>`
     + `<span class="b-q"></span><span class="b-why" hidden></span></span></summary>`
     + `<div class="browse-ans"><span class="b-text">${c.a}</span>
-      ${c.m ? `<button class="plate b-plate" aria-label="Enlarge the diagram: ${escAttr(stripTags(c.q))}"><img src="${COURSE.base}img/${encodeURIComponent(c.m)}" alt="Diagram: ${escapeHtml(stripTags(c.q))}" loading="lazy" width="${n(c.d[0])}" height="${n(c.d[1])}"></button><span class="b-zoom">Tap the diagram to enlarge</span>` : ''}
+      ${c.m ? `<button class="plate b-plate" aria-label="Enlarge the diagram: ${escAttr(stripTags(c.q))}"><img src="${COURSE.base}img/${encodeURIComponent(c.m)}" alt="Diagram: ${escapeHtml(stripTags(c.q))}" loading="lazy"${c.d ? ` width="${n(c.d[0])}" height="${n(c.d[1])}"` : ''}></button><span class="b-zoom">Tap the diagram to enlarge</span>` : ''}
       ${hasFig ? `<button class="plate b-fig" aria-label="Enlarge the drawing: ${escAttr(stripTags(c.q))}">${figureSVG(c)}</button><span class="b-zoom">Tap the drawing to enlarge</span>` : ''}
       <span class="b-sect">${escapeHtml(sect ? sect.t : c.s)} · ${STATE_WORDS[stateOf(c.i)]}</span></div></details>`;
   const q = li.querySelector('.b-q');
@@ -1620,6 +1760,10 @@ function browseRow(hit, terms, withSection) {
   if (hasFig) {
     const holder = li.querySelector('.b-fig');
     litFigure(holder, c);
+    // No drawFigureOn() here: this row is still detached, and a closed
+    // <details> is display:none once it is not. Both are unrendered, and an
+    // unrendered element cannot be measured. The row sets its drawing going
+    // when it opens instead — see the `toggle` listener on #browse-list.
     holder.addEventListener('click', () => openLightbox(c));
   }
   return li;
@@ -2075,6 +2219,9 @@ function openLightbox(card) {
     img.removeAttribute('src');
     figBox.innerHTML = figureSVG(card);
     litFigure(figBox, card);
+    // Deliberately no drawFigureOn(): the enlarged figure is the one you were
+    // already looking at, and re-drawing it here means watching the same
+    // drawing arrive twice — the second time while you are trying to zoom it.
   } else {
     figBox.innerHTML = '';
     img.src = COURSE.base + 'img/' + card.m;
@@ -2418,6 +2565,16 @@ function wire() {
   // `toggle` does not bubble, so this listens on the way down. Opening one
   // answer by hand has to be able to change what the button offers.
   $('#browse-list').addEventListener('toggle', syncOpenLabel, true);
+  // A row's drawing is set going when the row opens, which is the first moment
+  // it is on screen and so the first moment its opacities can be read. It runs
+  // again on every open: the drawing appears each time, and drawing itself is
+  // what appearing looks like here.
+  $('#browse-list').addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.open) return;
+    const fig = d.querySelector('.b-fig');
+    if (fig) drawFigureOn(fig);
+  }, true);
   $('#browse-more').addEventListener('click', () => {
     const from = browseLimit;
     browseLimit += BROWSE_PAGE;
@@ -2672,7 +2829,7 @@ function wire() {
       btn.disabled = false;
       btn.textContent = d.failed
         ? `${d.total - d.failed} of ${d.total} saved — retry the rest`
-        : 'All diagrams saved offline ✓';
+        : `All ${d.total === 1 ? 'saved' : 'diagrams saved'} offline ✓`;
     });
   }
 
@@ -2714,23 +2871,118 @@ function wire() {
   initLightbox();
 }
 
+/* What this deck is, and is not.
+ *
+ * The words are the course's — course.json's `notice`, with Munin's own plain
+ * line as the default. An almanac and an up-to-date chart are one course's
+ * caveat; printing them under an imported deck of German verbs is nonsense,
+ * and that is exactly what the engine used to do, because the sentence was
+ * markup in index.html. The video credit joins it when there is one. */
+function renderNotice() {
+  const el = $('#notice');
+  if (!el) return;
+  el.textContent = str(COURSE.notice, MUNIN.theme.notice);
+  const c = COURSE.credit || {};
+  const name = str(c.name, '');
+  if (!name) return;
+  el.append(' Video clips by ');
+  // http(s) or nothing. rel="noopener" already makes a javascript: URL here
+  // inert, but a credit line is a link to a person's work, and "the browser
+  // happens to defuse it" is not the reason it is safe.
+  const href = str(c.href, '');
+  if (/^https?:\/\//i.test(href)) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = name;
+    el.append(a);
+  } else {
+    el.append(name);
+  }
+  el.append(', used with a link back to each original.');
+}
+
+/* Offline, said in this deck's numbers.
+ *
+ * How many diagrams there are, and whether there are any, is a fact about the
+ * course. "The 24 diagrams are about 2 MB" was markup, so it was printed over
+ * a three-picture deck and over imported decks with no diagrams at all, above
+ * a button that then downloaded nothing. */
+function renderOffline() {
+  const card = $('#offline-card');
+  if (!card) return;
+  const shots = new Set(DECK.cards.filter((c) => c.m).map((c) => c.m));
+  if (!shots.size) {
+    // An imported deck keeps its pictures in the database with its cards;
+    // there is nothing to fetch and nothing to say.
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const many = shots.size > 1;
+  $('#offline-note').textContent = `The cards work offline as soon as you have opened the app once. `
+    + `The ${shots.size} diagram${many ? 's are' : ' is'} saved as you meet ${many ? 'them' : 'it'} — `
+    + `pull ${many ? 'them all' : 'it'} down now if you are heading somewhere without signal.`;
+  $('#prefetch-btn').textContent = many ? 'Save all diagrams offline' : 'Save the diagram offline';
+}
+
+/** Whatever went wrong, said on the loading screen the course is already
+ *  drawing. Text, not markup: a deck's own words end up in here. */
+function bootSays(line) {
+  const el = $('#boot-line');
+  if (el) el.textContent = line;
+  else $('#boot').textContent = line;
+}
+
 /* ─────────────────────────── boot ─────────────────────────── */
 
 async function boot() {
   load();
   applyTheme();
   try {
-    const res = await fetch(COURSE.base + 'cards.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    DECK = await res.json();
+    // An imported deck has no cards.json to fetch: it came out of a .apkg and
+    // lives in the browser's own database, so the shell hands it over directly.
+    if (COURSE.deck) DECK = COURSE.deck;
+    else {
+      const res = await fetch(COURSE.base + 'cards.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      DECK = await res.json();
+    }
   } catch (e) {
-    $('#boot').innerHTML =
-      '<p>Could not load the deck.<br>Reload the page, or check you are online for the first visit.</p>';
+    // The line, not the whole screen: the scene the course drew is what
+    // says which deck this is, and replacing it with a paragraph loses that
+    // at the one moment it is doing something useful.
+    bootSays('Could not load the deck. Reload the page, or check you are online '
+      + 'for the first visit.');
     return;
   }
-  $('#boot-art').innerHTML = doodle((COURSE.boot || {}).art || COURSE.fallback);
-  for (const el of document.querySelectorAll('[data-deck-size]')) {
-    el.textContent = DECK.cards.length + ' cards';
+
+  /* A deck that is the wrong shape is caught here rather than three screens
+   * later. Two things build one — the python that authors a course and the
+   * .apkg importer — and neither used to be checked against the other. The
+   * message names the first thing wrong with it, because "it did not work" is
+   * what this replaced. */
+  try {
+    const { validateDeck } = await import('./lib/validate.js');
+    const v = validateDeck(DECK);
+    if (!v.ok) {
+      console.error('deck:', v.errors);
+      bootSays('This deck could not be read. ' + v.errors[0]);
+      return;
+    }
+  } catch (e) {
+    // The validator itself failing is not a reason to refuse to study.
+    console.error(e);
+  }
+
+  // "537 cards is more than you can cram" is true of a syllabus and false of a
+  // deck someone imported on the bus. Say the thing that is true of this deck.
+  const cram = $('#ask-why');
+  if (cram) {
+    cram.textContent = DECK.cards.length > 120
+      ? `${DECK.cards.length} cards is more than you can cram. Give the app a date and it works out how many new cards a day you need, and stops scheduling anything for after you have sat it.`
+      : `Give the app a date and it works out how many of these ${DECK.cards.length} cards a day you need, and stops scheduling anything for after you have sat it.`;
   }
   byId = new Map(DECK.cards.map((c) => [c.i, c]));
   sectionOf = new Map(DECK.sections.map((s) => [s.k, s]));
@@ -2750,19 +3002,23 @@ async function boot() {
 
   // Optional, and deliberately not awaited with the deck: no video map, or a
   // stale one, must never stop the cards loading.
-  fetch(COURSE.base + 'videos.json', { cache: 'no-cache' })
+  // An imported deck brings no clips and no drawings; asking for them would be
+  // two guaranteed 404s on every boot.
+  if (!COURSE.deck) fetch(COURSE.base + 'videos.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .then((v) => { if (v && v.clips && v.cards) VIDEOS = v; })
     .catch(() => {});
 
   // Same deal for the figures: a card with a missing drawing is a card with
   // no drawing, never a card that fails to appear.
-  fetch(COURSE.base + 'figures.json', { cache: 'no-cache' })
+  if (!COURSE.deck) fetch(COURSE.base + 'figures.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .then((f) => { if (f) { FIGURES = f; const c = currentCard(); if (c) renderCardFigure(c); } })
     .catch(() => {});
 
   $('#search').placeholder = `Search ${DECK.cards.length} cards…`;
+  renderNotice();
+  renderOffline();
   wire();
   $('#boot').hidden = true;
   $('#app').hidden = false;
@@ -2784,9 +3040,6 @@ async function boot() {
     if (DSSync.enabled()) runSync();
   }
 
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
 }
 
 boot();

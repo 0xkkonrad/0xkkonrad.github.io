@@ -1,7 +1,13 @@
-/* RYA Day Skipper flashcards — "Deck Doodle × Signal Flags".
+/* Munin — the app's own stylesheet, in the "Deck Doodle × Signal Flags"
+ * language it was drawn in for Day Skipper.
+ *
+ * Everything here is Munin's and shared by every course: type, layout, the
+ * grade flags, the mastery bars. A course brings its accent pair (injected by
+ * munin.js over --accent / --accent-ink / --g4), its doodle set, and its own
+ * loading screen — and nothing else.
  *
  * Mono type on flat paper, everything outlined in 2px ink with a hard offset
- * shadow, one indigo accent, and hand-drawn nautical doodles that mark progress.
+ * shadow, one accent, and hand-drawn doodles that mark progress.
  * Colour still carries information rather than decoration: the four grade
  * buttons keep the flag palette, and the mastery bars keep their three segments.
  *
@@ -45,13 +51,18 @@
   --stroke: #121214;              /* every outline and every hard shadow */
   --text: #121214;
   --muted: #55555e;
-  --accent: #3a30d8;
+  /* Munin's own ink teal. The engine's default accent used to be one
+     course's indigo, so every OTHER course painted its loading screen in a
+     rival course's brand colour until course.json arrived — precisely the
+     window the screen exists to cover. munin.js overrides these four
+     variables per course; what is left here is Munin's own. */
+  --accent: #0e3f39;
   --accent-ink: #fffdf7;
   --flag: #ffd54a;                /* the one non-accent colour: chips and marks */
   --g1: #b8371f;
   --g2: #8f5a10;
   --g3: #276e46;
-  --g4: #3a30d8;
+  --g4: #0e3f39;
   --warn: #a4581a;
   --r: 14px;
   --r-sm: 10px;
@@ -75,13 +86,13 @@
     --stroke: #f1efe8;
     --text: #f1efe8;
     --muted: #a6a7b2;
-    --accent: #9d95ff;
+    --accent: #35917f;
     --accent-ink: #141519;
     --flag: #ffd54a;
     --g1: #ff8a75;
     --g2: #f0b64a;
     --g3: #5ed49a;
-    --g4: #9d95ff;
+    --g4: #35917f;
     --warn: #f0b64a; --fig-blu: #6fb2ff;
     color-scheme: dark;
   }
@@ -91,16 +102,16 @@
 :root[data-theme="light"] {
   --bg: #f0eee7; --surface: #fffdf7; --surface-2: #e6e3da;
   --line: #d5d1c6; --line-strong: #121214; --stroke: #121214;
-  --text: #121214; --muted: #55555e; --accent: #3a30d8; --accent-ink: #fffdf7;
-  --g1: #b8371f; --g2: #8f5a10; --g3: #276e46; --g4: #3a30d8; --warn: #a4581a;
+  --text: #121214; --muted: #55555e; --accent: #0e3f39; --accent-ink: #fffdf7;
+  --g1: #b8371f; --g2: #8f5a10; --g3: #276e46; --g4: #0e3f39; --warn: #a4581a;
   --fig-blu: #1f5fa8;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
   --bg: #141519; --surface: #1c1e25; --surface-2: #272a33;
   --line: #343742; --line-strong: #f1efe8; --stroke: #f1efe8;
-  --text: #f1efe8; --muted: #a6a7b2; --accent: #9d95ff; --accent-ink: #141519;
-  --g1: #ff8a75; --g2: #f0b64a; --g3: #5ed49a; --g4: #9d95ff; --warn: #f0b64a;
+  --text: #f1efe8; --muted: #a6a7b2; --accent: #35917f; --accent-ink: #141519;
+  --g1: #ff8a75; --g2: #f0b64a; --g3: #5ed49a; --g4: #35917f; --warn: #f0b64a;
   --fig-blu: #6fb2ff;
   color-scheme: dark;
 }
@@ -163,7 +174,23 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 }
 /* Ten drawings have to fit inside a 320px screen without a sideways scrollbar,
    which is what sets this size rather than taste. */
-.frieze .dood { width: 22px; height: 22px; animation: bob 3.4s ease-in-out infinite; }
+/* The drawing arrives with a hop and then settles into a breath: the entrance
+   plays once, the idle plays forever, and one element carries both. Two
+   animations on one element do not blend — the later one in the list simply
+   takes `transform` when its delay is up — which is exactly the hand-off
+   wanted here, because both meet at rest.
+
+   The stagger is a custom property rather than an inline `animation-delay`:
+   with two animations, one inline delay would set both of them and the idle
+   would start before the hop had finished. */
+.frieze .dood {
+  width: 22px; height: 22px;
+  transform-origin: 50% 100%;              /* a creature with feet stays on them */
+  animation: hop-in .95s ease-out both,
+             breathe 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * .09s),
+                   calc(.95s + var(--i, 0) * .09s);
+}
 @media (min-width: 400px) { .frieze .dood { width: 26px; height: 26px; } }
 /* An empty berth: the drawings you have not earned yet are there in outline, so
    the row reads as a progress bar you happen to like looking at. The class is
@@ -172,7 +199,27 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .frieze .unearned { opacity: .22; animation: none; }
 #s-home .top { padding-top: 10px; }
 
-@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* The entrance. This is a hop re-cut to be played once: the version that used
+   to loop spent most of its timeline standing still, because a hop every
+   second is a twitch. As an arrival the whole 0.95s is the hop, and it opens
+   with a short fade so the drawing arrives rather than turning out to have
+   been there. Squash before the leap, stretch in the air, squash on landing —
+   the drawing is elastic or it reads as a sticker being slid about. */
+@keyframes hop-in {
+  0%   { opacity: 0; transform: translateY(4px); }
+  14%  { opacity: 1; transform: translateY(2px) scale(1.12, .88); }
+  42%  { transform: translateY(-9px) scale(.88, 1.14); }
+  70%  { transform: translateY(0) scale(1.14, .88); }
+  86%  { transform: translateY(-2px) scale(.98, 1.03); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+/* The idle. Non-uniform scale about the feet, not a float: a drawing that
+   leaves the floor is a sticker, one that swells and settles is breathing. */
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  45%      { transform: scale(.955, 1.05); }
+  72%      { transform: scale(1.025, .982); }
+}
 
 /* ── shell ───────────────────────────────────────────────────────── */
 
@@ -203,6 +250,7 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
   margin: 0; font-size: 1.5rem; font-weight: 500; letter-spacing: -.03em;
   text-transform: lowercase;
 }
+.top h1.own { text-transform: none; }
 .sub { margin: 4px 0 0; color: var(--muted); font-size: .8rem; text-transform: lowercase; }
 
 .icon-btn {
@@ -514,35 +562,26 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
    or the one card that needs to read a position off the grid loses the grid. */
 .figure text.f-note[data-l]:not(.on) { opacity: 0; }
 
+/* What follows is the figure LANGUAGE, and it is Munin's: what a dash means,
+   what a leader line is, what a swept arc is. It is true of any subject drawn
+   this way. A course's own nouns — its rigging, its fenders, its pontoons —
+   live in courses/<id>/figures.css, because they are that course's drawings
+   and not the app's. Fifty of them used to be in this file, applied over every
+   deck anybody imported. */
 .figure .f-thin { stroke: var(--muted); stroke-width: 1.4; }
 /* Exception 1 of 2: a dash still means "construction line", "section cut" or
-   "not really there" — the waterline is dashed because it is a level, not a
-   part of the boat. Seven figures would lose that if the dashes went solid. */
+   "not really there" — a waterline is dashed because it is a level, not a part
+   of the thing. Figures across both courses would lose that if dashes went
+   solid. */
 .figure .f-dash { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 6 6; }
 .figure .f-dash-acc { stroke-dasharray: 5 5; stroke-width: 1.4; }
 .figure .f-lead { stroke-width: 1.4; }
 .figure .f-meas { stroke: var(--muted); stroke-width: 1.4; }
-.figure .f-rig { stroke-width: 1.4; }
-.figure .f-side { stroke-width: 1.4; }
-.figure .f-edge { stroke-width: 1.4; }
 .figure .f-cut { stroke-width: 1.4; stroke-dasharray: 7 5; }
 /* Exception 2 of 2: the two arcs are a swept area rather than a line, and a
    swept area at hairline is a scratch. They keep a weight, at low opacity. */
 .figure .f-arc { stroke-width: 4; opacity: .35; }
 .figure .f-arc-on { stroke-width: 5; opacity: .6; }
-.figure .f-wind { stroke: var(--fig-blu); stroke-width: 1.4; }
-.figure .f-brace { stroke-width: 1.4; }
-.figure .f-shore { stroke-width: 1.4; }
-.figure .f-boom { stroke-width: 1.4; }
-.figure .f-tie { stroke: var(--muted); stroke-width: 1.4; }
-.figure .f-arm { stroke-width: 1.4; }
-.figure .f-sail { fill: var(--surface-2); }
-.figure .f-pontoon { stroke-width: 1.4; }
-.figure .f-warp { stroke-width: 1.4; }
-.figure .f-fender { stroke: var(--muted); stroke-width: 1.4; fill: var(--surface-2); }
-.figure .f-jack { stroke-width: 1.4; stroke-dasharray: 10 5; }
-.figure .f-walk { stroke-width: 1.4; }
-.figure .f-wash { stroke-width: 1.4; stroke-dasharray: 9 5; }
 .figure .f-dash-red { stroke-dasharray: 6 5; stroke-width: 1.4; }
 .figure .fill-amb { fill: var(--g2); stroke: var(--stroke); }
 /* The accent used to mean "this is the bit the card is asking about". The
@@ -570,6 +609,46 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 .figure .fill-blu { fill: var(--fig-blu); stroke: var(--stroke); }
 .figure .fill-ink { fill: var(--stroke); stroke: var(--stroke); }
 .figure .fill-pap { fill: var(--surface); stroke: var(--stroke); }
+
+/* ── the figure draws itself ─────────────────────────────────────── */
+
+/* A figure arrives being drawn, the same way the boot raven does, and for the
+   same reason: these are drawings, and a drawing that fades up was never
+   drawn by anybody.
+ *
+ * A pen is stroke-dasharray, so only some of a figure can take one. A dash
+ * already means "construction line" or "section cut"; an arc is a swept area,
+ * not a line; a flare is a filled shape, where a dash animation hides the
+ * outline and leaves the fill sitting there; and a label is glyphs, with no
+ * line to travel along. Those all fade instead, and the split is decided in
+ * drawFigureOn() — see the note there for why it is not decided in the build.
+ *
+ * Everything happens over about nine-tenths of a second. Longer was measured
+ * and rejected: a figure is under a card you are trying to read, and a drawing
+ * that is still arriving when you have finished reading the question is a
+ * drawing in the way.
+ *
+ * The classes are only ever added by drawFigureOn(), so a figure rendered by
+ * anything else — the lightbox — is simply already finished. */
+.fig-draw .pen { stroke-dasharray: 1 1; animation: fig-pen .75s ease-out both; }
+.fig-draw .soft { animation: fig-fade .28s ease-out both; animation-delay: .42s; }
+.fig-draw .lab { animation: fig-lab .3s ease-out both; animation-delay: .62s; }
+.figure text { transform-box: fill-box; transform-origin: 50% 50%; }
+
+/* pathLength="1" renormalises every path to a length of 1, so one rule draws
+   any of them — the same trick the boot raven uses. A dash of `1 1` is then
+   the whole path followed by an equal gap, which at offset 0 is a finished
+   drawing: if the animation never runs, nothing is left half-drawn. */
+@keyframes fig-pen { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* Both fades end on --tgt, the element's own resting opacity, measured off the
+   cascade before the animation is attached. Ending them on 1 instead would
+   un-dim every label the card is not asking about, and the dimming is what
+   lets one drawing serve six cards. */
+@keyframes fig-fade { from { opacity: 0; } to { opacity: var(--tgt, 1); } }
+@keyframes fig-lab {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: var(--tgt, 1); transform: none; }
+}
 
 /* ── study ───────────────────────────────────────────────────────── */
 
@@ -735,13 +814,15 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
   background: var(--surface); box-shadow: var(--sh);
   color: var(--accent); position: relative;
 }
-.done-tick .dood { width: 44px; height: 44px; animation: sail 2.6s ease-in-out infinite; }
+.done-tick .dood { width: 44px; height: 44px; animation: sway 2.6s ease-in-out infinite; }
 /* Four pen-strokes that fly off the badge when a session lands. */
 .done-tick .spark {
   position: absolute; width: 12px; height: 2px; background: var(--accent);
   border-radius: 2px; animation: spark .9s ease-out both;
 }
-@keyframes sail { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+/* Engine motion, named for what it does. It used to be called `sail`, which
+ * is one course's word sitting in the shared stylesheet. */
+@keyframes sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
 @keyframes hop { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
 @keyframes spark { from { opacity: 1; transform: translate(0, 0) scale(.5); } to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
 
@@ -1067,10 +1148,27 @@ mark {
 
 /* ── boot + toast ────────────────────────────────────────────────── */
 
+/* Munin's own loading screen. A course replaces the scene inside .boot-scene
+ * with its own markup and brings its own stylesheet for it (courses/<id>/
+ * boot.html + boot.css), so the animation vocabulary is the course's too —
+ * these rules only dress the default raven. Nothing here is filled in by
+ * JavaScript: the screen has to be painted before app.js exists, which is the
+ * whole window it covers. */
 .boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); gap: 12px; }
 .boot[hidden] { display: none; }
 .boot p { font-size: .88rem; text-transform: lowercase; }
-.boot .dood { width: 46px; height: 46px; color: var(--accent); animation: var(--boot-anim, sail) 2.2s ease-in-out infinite; }
+.boot-scene { display: grid; place-items: center; }
+.boot-raven { width: 52px; height: 52px; color: var(--accent); animation: hop 2.4s ease-in-out infinite; }
+/* pathLength="1" renormalises the path whatever its real geometry, so one rule
+ * draws any drawing on — no measured length per doodle, and redrawing a doodle
+ * cannot silently break its own animation. */
+.boot-raven path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: bootdraw 1.5s ease-out forwards; }
+@keyframes bootdraw { to { stroke-dashoffset: 0; } }
+/* Reduced motion leaves the drawing finished, not half-drawn. */
+@media (prefers-reduced-motion: reduce) {
+  .boot-raven { animation: none; }
+  .boot-raven path { stroke-dashoffset: 0; animation: none; }
+}
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -1097,6 +1195,43 @@ mark {
   .frieze .dood { width: 30px; height: 30px; }
   .nav { padding-inline: max(0px, calc(50% - 340px)); }
 }
+
+/* ── cards that came out of a .apkg ──────────────────────────────────────────
+ *
+ * A Munin course writes its own markup and gets its pictures through the
+ * diagram plate. An imported card brings whatever its author wrote: pictures
+ * inline, audio, tables, ruby text, and cloze deletions. Its own fonts and
+ * colours were dropped at import — these rules are what is left to make a
+ * stranger's markup sit inside Munin's type without fighting it. */
+.question img, .answer img, .b-text img {
+  max-width: 100%; height: auto; margin: 6px 0; border-radius: var(--r-sm);
+}
+.question audio, .answer audio, .b-text audio {
+  width: 100%; max-width: 300px; height: 34px; margin: 6px 0; display: block;
+}
+/* The blank a cloze card is asking about, and the same words once it answers. */
+.question .cloze, .answer .cloze, .b-text .cloze { color: var(--accent); font-weight: 500; }
+.question .hint, .answer .hint { color: var(--muted); font-style: italic; }
+.question table, .answer table, .b-text table {
+  border-collapse: collapse; margin: 8px 0; font-size: .92em; display: block;
+  max-width: 100%; overflow-x: auto;
+}
+.question td, .question th, .answer td, .answer th, .b-text td, .b-text th {
+  border: 1px solid var(--stroke); padding: 4px 8px; text-align: left;
+}
+.question pre, .answer pre { white-space: pre-wrap; overflow-x: auto; font-size: .9em; }
+/* Lists and links are also part of the authored-course vocabulary since the
+ * 28 July 2026 schema ruling (course-source.md), so these two rules serve
+ * Browse rows as well as the study card. */
+.question ul, .question ol, .answer ul, .answer ol,
+.b-text ul, .b-text ol { margin: 6px 0; padding-left: 22px; text-align: left; }
+.question a, .answer a, .b-text a {
+  color: var(--accent); text-underline-offset: 3px;
+}
+.question blockquote, .answer blockquote {
+  margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--stroke); color: var(--muted);
+}
+.question ruby rt, .answer ruby rt { font-size: .6em; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
