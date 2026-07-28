@@ -259,6 +259,13 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
   background: none; border: 0; border-radius: var(--r-sm);
   color: var(--muted); font-size: 1.1rem; line-height: 1;
 }
+/* The theme toggle is a drawing now, not a character, so it needs a box —
+   font-size no longer sizes it. Three selectors' worth of weight on purpose:
+   the shelf's own CSS is injected at runtime, after this file, and its
+   `.shelf-mark .dood` would otherwise draw a 34px sun in the header. Colour is
+   taken from the button rather than from `.dood`'s accent, so the toggle stays
+   the quiet grey it has always been and still lights up on hover. */
+.icon-btn .dood.dood-glyph { width: 21px; height: 21px; color: inherit; }
 .icon-btn:disabled { opacity: .35; }
 .icon-btn:active:not(:disabled) { background: var(--surface-2); color: var(--text); }
 @media (hover: hover) { .icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); } }

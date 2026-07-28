@@ -99,9 +99,13 @@ const MuninTheme = {
     const meta = document.getElementById('theme-color');
     if (meta) meta.setAttribute('content', dark ? '#141519' : '#f0eee7');
     // Every glyph on the page — the shelf's and the course header's — says the
-    // same thing, because they are the same setting.
+    // same thing, because they are the same setting. The attribute carries the
+    // name as well as the drawing: it is what a test can read, and what tells
+    // you which state you are in when the SVG is a wall of path data.
+    const name = t === 'auto' ? 'dusk' : t === 'dark' ? 'night' : 'day';
     for (const g of document.querySelectorAll('[data-theme-glyph]')) {
-      g.textContent = t === 'auto' ? '◐' : t === 'dark' ? '☾' : '☀';
+      g.dataset.themeGlyph = name;
+      g.innerHTML = muninGlyph(name);
     }
   },
 };
@@ -195,11 +199,24 @@ function renderShelfInstall() {
     : '<li>tap the share button in the browser bar</li><li>choose “Add to Home Screen”</li>';
 }
 
-function muninDoodle(name, cls, style) {
-  const d = MUNIN_DOODLE[name] || MUNIN_DOODLE.perch;
+function drawnAs(d, cls, style) {
   return `<svg class="dood ${cls || ''}" viewBox="0 0 32 32" fill="none" stroke="currentColor"
     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
     ${style ? `style="${style}"` : ''}><path d="${d}"/></svg>`;
+}
+
+function muninDoodle(name, cls, style) {
+  return drawnAs(MUNIN_DOODLE[name] || MUNIN_DOODLE.perch, cls, style);
+}
+
+/* The theme toggle's three states, from Munin's chrome set rather than the
+ * raven set — see design/raven-doodles/build.py for why those are two objects.
+ * The Unicode fallback is not decoration: this runs before first paint, and a
+ * toggle that draws nothing at all is a control nobody can find. */
+const GLYPH_TEXT = { day: '☀', night: '☾', dusk: '◐' };
+function muninGlyph(name) {
+  const d = (globalThis.MUNIN_GLYPH || {})[name];
+  return d ? drawnAs(d, 'dood-glyph') : (GLYPH_TEXT[name] || '');
 }
 
 /* One <style> block per boot: the four scopes app.css declares its accent in,
@@ -741,7 +758,7 @@ async function renderShelf(asOverlay) {
   el.innerHTML = `<div class="shelf-inner">
     <div class="shelf-mark">${muninDoodle('perch')}<h1>munin</h1>
       <button type="button" class="icon-btn" id="shelf-theme" aria-label="Switch colour theme"
-        title="Switch colour theme"><span aria-hidden="true" data-theme-glyph>☀</span></button>
+        title="Switch colour theme"><span aria-hidden="true" data-theme-glyph></span></button>
     </div>
     <p class="shelf-sub">a friendly raven who remembers for you</p>
     <div class="shelf-tiles">
