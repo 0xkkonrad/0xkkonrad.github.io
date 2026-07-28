@@ -168,9 +168,24 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .dood { color: var(--accent); }
 
 .frieze {
+  position: relative;                       /* the rule is laid under the row */
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 4px; color: var(--accent);
   padding: calc(10px + env(safe-area-inset-top)) 20px 0;
+}
+/* The line the drawings stand on, written by friezeRule(). Inset by the
+   frieze's own padding so it runs from the first drawing's foot to the last —
+   a line that stopped short of either would read as an underline under some of
+   them. Out of the flex flow: as a flex item it would have taken a share of
+   `space-between` and pushed the row about. Quieter than the drawings, because
+   it is the ground and they are the subject. */
+.frieze-rule {
+  position: absolute; left: 20px; right: 20px; bottom: 0;
+  height: 6px; line-height: 0; opacity: .5; pointer-events: none;
+}
+.frieze-rule svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.frieze-rule path {
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
 }
 /* Ten drawings have to fit inside a 320px screen without a sideways scrollbar,
    which is what sets this size rather than taste. */

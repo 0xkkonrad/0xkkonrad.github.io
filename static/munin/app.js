@@ -878,6 +878,29 @@ const GROUP_ART = COURSE.groupArt || {};
  * deck gets started. It is the streak and the percentage said as a picture. */
 const FRIEZE_ART = COURSE.friezeArt || [];
 
+/* The ground the drawings stand on. Ten evenly spaced accent drawings across
+ * the full width of the top of a screen is the geometry of a toolbar, and the
+ * eye read it as ten buttons; one line under their feet makes them one object,
+ * and an object standing on a line is obviously a picture rather than a row of
+ * targets. It carries no progress of its own — that is still the earned ink
+ * against the unearned above it — so it is one unbroken line, not a track that
+ * fills.
+ *
+ * Drawn rather than a `border-bottom`: a ruled 1px line under a row of
+ * hand-drawn creatures reads as a table header. The wobble is a fixed sum, not
+ * Math.random — a line that re-draws itself every time the frieze re-renders
+ * is a line that twitches every time a card is graded. */
+function friezeRule() {
+  let d = 'M0 3';
+  for (let i = 1; i <= 24; i++) {
+    d += ` L${(i * 100 / 24).toFixed(2)} ${(3 + Math.sin(i * 1.7) * 0.55).toFixed(2)}`;
+  }
+  // The viewBox is stretched to whatever width the header is, so the stroke has
+  // to opt out of that scaling or the pen thickens with the screen.
+  return '<span class="frieze-rule"><svg viewBox="0 0 100 6" preserveAspectRatio="none">'
+    + `<path d="${d}" vector-effect="non-scaling-stroke"/></svg></span>`;
+}
+
 function renderFrieze() {
   const el = $('#frieze');
   if (!el || !DECK) return;
@@ -888,7 +911,9 @@ function renderFrieze() {
     // single inline `animation-delay` would set both of them — starting the
     // idle before the hop it is supposed to follow. app.css does the sums.
     .map((k, i) => doodle(k, i < filled ? '' : 'unearned', `--i:${i}`))
-    .join('');
+    .join('')
+    // A course that draws no frieze gets no lone line across its header.
+    + (FRIEZE_ART.length ? friezeRule() : '');
 }
 
 /* ─────────────────────────── session ─────────────────────────── */
@@ -2448,7 +2473,11 @@ function boundExamInputs() {
  * A course cannot hold its own — you would change colour by changing deck. */
 function applyTheme() {
   MuninTheme.apply();
-  $('#theme-btn').title = `Colour theme: ${MuninTheme.get()}`;
+  const chosen = MuninTheme.get();
+  // Not the same sentence: an install that has chosen nothing is following the
+  // device, and saying "Colour theme: light" would claim a choice it never made.
+  $('#theme-btn').title = chosen ? `Colour theme: ${chosen}`
+    : `Colour theme: following your device (${MuninTheme.showing()})`;
 }
 
 /* ─────────────────────────── wiring ─────────────────────────── */

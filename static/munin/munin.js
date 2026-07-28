@@ -73,36 +73,52 @@ globalThis.DSSync = {
 
 /* The colour theme belongs to Munin, not to a course: the shelf paints before
  * any course is booted, and a preference stored per course would flip as you
- * switched between them. One key, read before the first paint. Light is the
- * default — the app is paper first, and dark is a choice you make. */
-const THEME_ORDER = ['light', 'dark', 'auto'];
+ * switched between them. One key, read before the first paint.
+ *
+ * TWO STATES, and the device is not one of them. "Auto" was a third position in
+ * the cycle until 28 July 2026, and it was a question nobody has: once you have
+ * chosen light or dark, a control that offers to un-choose is asking you about
+ * something you already settled. So following the device is the DEFAULT rather
+ * than a choice — nothing stored, no `data-theme` attribute, and the
+ * prefers-color-scheme block in app.css decides — and the first tap is the act
+ * that stops it following. There is deliberately no way back to it from the
+ * button; clearing the key is.
+ *
+ * `get()` is what was chosen and may be null. `showing()` is what is on screen
+ * and never is, because a colour is always showing. Reaching for get() where
+ * showing() belongs is how a null ends up rendered as a theme name. */
 const MuninTheme = {
   key: 'munin/theme',
+  /** The choice: 'light', 'dark', or null for "whatever the device says". */
   get() {
     const t = localStorage.getItem(MuninTheme.key);
-    return THEME_ORDER.includes(t) ? t : 'light';
+    return t === 'light' || t === 'dark' ? t : null;
+  },
+  /** The colour actually on screen, chosen or inherited. Never null. */
+  showing() {
+    return MuninTheme.get()
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   },
   set(t) {
     localStorage.setItem(MuninTheme.key, t);
     MuninTheme.apply();
   },
+  /** The button does one thing: it shows you the other one. */
   cycle() {
-    const t = MuninTheme.get();
-    MuninTheme.set(THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length]);
+    MuninTheme.set(MuninTheme.showing() === 'dark' ? 'light' : 'dark');
   },
   apply() {
-    const t = MuninTheme.get();
-    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', t);
-    const dark = t === 'dark'
-      || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    const chosen = MuninTheme.get();
+    if (chosen) document.documentElement.setAttribute('data-theme', chosen);
+    else document.documentElement.removeAttribute('data-theme');
+    const dark = MuninTheme.showing() === 'dark';
     const meta = document.getElementById('theme-color');
     if (meta) meta.setAttribute('content', dark ? '#141519' : '#f0eee7');
     // Every glyph on the page — the shelf's and the course header's — says the
     // same thing, because they are the same setting. The attribute carries the
     // name as well as the drawing: it is what a test can read, and what tells
     // you which state you are in when the SVG is a wall of path data.
-    const name = t === 'auto' ? 'dusk' : t === 'dark' ? 'night' : 'day';
+    const name = dark ? 'night' : 'day';
     for (const g of document.querySelectorAll('[data-theme-glyph]')) {
       g.dataset.themeGlyph = name;
       g.innerHTML = muninGlyph(name);
@@ -110,6 +126,14 @@ const MuninTheme = {
   },
 };
 globalThis.MuninTheme = MuninTheme;
+
+/* An install that has chosen nothing follows the device, and the device changes
+ * its mind at sunset. Without this the app would sit in the colour it happened
+ * to boot in until the next reload — which is the whole of what "follows your
+ * device" is supposed to mean. Harmless once a choice exists: apply() reads the
+ * choice first and the media query never gets a say. */
+matchMedia('(prefers-color-scheme: dark)')
+  .addEventListener('change', () => MuninTheme.apply());
 
 /* ── installing ───────────────────────────────────────────────────────────
  *
