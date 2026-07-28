@@ -75,29 +75,27 @@ globalThis.DSSync = {
  * any course is booted, and a preference stored per course would flip as you
  * switched between them. One key, read before the first paint.
  *
- * TWO STATES, and the device is not one of them. "Auto" was a third position in
+ * TWO STATES, and neither of them is the device. "Auto" was a third position in
  * the cycle until 28 July 2026, and it was a question nobody has: once you have
  * chosen light or dark, a control that offers to un-choose is asking you about
- * something you already settled. So following the device is the DEFAULT rather
- * than a choice — nothing stored, no `data-theme` attribute, and the
- * prefers-color-scheme block in app.css decides — and the first tap is the act
- * that stops it following. There is deliberately no way back to it from the
- * button; clearing the key is.
+ * something you already settled. Following the device replaced it for half a
+ * day and went the same way — Munin is drawn on paper, and it opens on paper
+ * whatever the phone thinks. DEFAULT IS LIGHT. Dark is a choice, the button is
+ * how you make it, and it is remembered.
  *
  * `get()` is what was chosen and may be null. `showing()` is what is on screen
  * and never is, because a colour is always showing. Reaching for get() where
  * showing() belongs is how a null ends up rendered as a theme name. */
 const MuninTheme = {
   key: 'munin/theme',
-  /** The choice: 'light', 'dark', or null for "whatever the device says". */
+  /** The choice: 'light', 'dark', or null for "never said". */
   get() {
     const t = localStorage.getItem(MuninTheme.key);
     return t === 'light' || t === 'dark' ? t : null;
   },
-  /** The colour actually on screen, chosen or inherited. Never null. */
+  /** The colour actually on screen. Never null: an unchosen install is light. */
   showing() {
-    return MuninTheme.get()
-      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    return MuninTheme.get() || 'light';
   },
   set(t) {
     localStorage.setItem(MuninTheme.key, t);
@@ -108,9 +106,9 @@ const MuninTheme = {
     MuninTheme.set(MuninTheme.showing() === 'dark' ? 'light' : 'dark');
   },
   apply() {
-    const chosen = MuninTheme.get();
-    if (chosen) document.documentElement.setAttribute('data-theme', chosen);
-    else document.documentElement.removeAttribute('data-theme');
+    // Always written, even unchosen: app.css has no prefers-color-scheme block
+    // to fall through to any more, and the attribute is what a test can read.
+    document.documentElement.setAttribute('data-theme', MuninTheme.showing());
     const dark = MuninTheme.showing() === 'dark';
     const meta = document.getElementById('theme-color');
     if (meta) meta.setAttribute('content', dark ? '#141519' : '#f0eee7');
@@ -127,13 +125,9 @@ const MuninTheme = {
 };
 globalThis.MuninTheme = MuninTheme;
 
-/* An install that has chosen nothing follows the device, and the device changes
- * its mind at sunset. Without this the app would sit in the colour it happened
- * to boot in until the next reload — which is the whole of what "follows your
- * device" is supposed to mean. Harmless once a choice exists: apply() reads the
- * choice first and the media query never gets a say. */
-matchMedia('(prefers-color-scheme: dark)')
-  .addEventListener('change', () => MuninTheme.apply());
+/* No prefers-color-scheme listener. Sunset used to change the app's colour
+ * under an install that had chosen nothing; nothing follows the device now, so
+ * there is nothing to follow it with. */
 
 /* ── installing ───────────────────────────────────────────────────────────
  *
@@ -243,8 +237,10 @@ function muninGlyph(name) {
   return d ? drawnAs(d, 'dood-glyph') : (GLYPH_TEXT[name] || '');
 }
 
-/* One <style> block per boot: the four scopes app.css declares its accent in,
- * overridden from course.json (or Munin's own ink teal on the shelf). */
+/* One <style> block per boot: the scopes app.css declares its accent in,
+ * overridden from course.json (or Munin's own ink teal on the shelf). There
+ * were four; the prefers-color-scheme one went with app.css's, and `:root`
+ * stays because it is what paints before the theme attribute is written. */
 function injectAccent(a) {
   const old = document.getElementById('course-theme');
   if (old) old.remove();
@@ -252,9 +248,6 @@ function injectAccent(a) {
   s.id = 'course-theme';
   s.textContent = `
     :root { --accent: ${a.light}; --accent-ink: ${a.inkLight}; --g4: ${a.light}; }
-    @media (prefers-color-scheme: dark) {
-      :root { --accent: ${a.dark}; --accent-ink: ${a.inkDark}; --g4: ${a.dark}; }
-    }
     :root[data-theme="light"] { --accent: ${a.light}; --accent-ink: ${a.inkLight}; --g4: ${a.light}; }
     :root[data-theme="dark"] { --accent: ${a.dark}; --accent-ink: ${a.inkDark}; --g4: ${a.dark}; }`;
   document.head.appendChild(s);
@@ -384,6 +377,59 @@ function replayBoot(id) {
   applyBoot(readBootCache(id));
 }
 
+/* ── the splash ───────────────────────────────────────────────────────────
+ *
+ * The loading screen is held on purpose (28 July 2026). Measured against
+ * production before this: 103ms on a cold visit and 21–39ms on a warm one —
+ * two to four frames — because a cache-first service worker leaves nothing to
+ * cover. The course's own scene was worse than invisible: it only paints from
+ * visit two onward, and every visit from two onward is a warm one, so Day
+ * Skipper's boat had never been on a screen for longer than three frames.
+ *
+ * So the screen is now shown rather than merely used. HOLD is the floor, not a
+ * delay added to a load: a boot slower than this hides the screen when it is
+ * ready and no later. DRAW (in app.css and in each course's boot.css) is under
+ * HOLD so the drawing finishes drawing itself before anything fades.
+ */
+const SPLASH = { at: performance.now(), hold: 800, fade: 220 };
+
+/** Resolves once the screen has been up long enough to have been seen. */
+function splashHeld() {
+  const left = SPLASH.hold - (performance.now() - SPLASH.at);
+  return left > 0 ? new Promise((r) => setTimeout(r, left)) : Promise.resolve();
+}
+
+/** Take the loading screen down: held to its floor, faded, then gone.
+ *
+ * Whatever replaces it must already be on the page when this is called — the
+ * fade reveals what is behind, and behind a splash that goes first is nothing.
+ */
+async function dismissBoot() {
+  const boot = document.getElementById('boot');
+  if (!boot || boot.hidden) return;
+  await splashHeld();
+  boot.classList.add('going');
+  await new Promise((r) => setTimeout(r, SPLASH.fade));
+  boot.hidden = true;
+  boot.classList.remove('going');   // the shelf overlay can raise it again
+}
+globalThis.MuninBoot = { dismiss: dismissBoot, splash: SPLASH };
+
+/* The scenes of the courses sitting on the shelf, fetched once the shelf is up
+ * and drawn on nobody's critical path. Without this the FIRST tap on a tile
+ * opens onto Munin's raven — the course's own drawing is only ever replayed
+ * from a cache that that first open is what fills. A held splash made the miss
+ * worth a full second of the wrong bird. course.json is already in hand from
+ * drawing the tile, so this costs two small files per course, once. */
+function prefetchScenes(metas) {
+  for (const c of metas) {
+    if (!c || readBootCache(c.id)) continue;
+    c.base = c.base || 'courses/' + c.id + '/';
+    // Failure is the status quo ante — a first open that draws the raven.
+    cacheBootScene(c).catch(() => {});
+  }
+}
+
 /* Cheap content stamp, so a redrawn scene swaps in the moment it arrives
  * instead of one visit later, and an unchanged one never re-renders. */
 function stamp(s) {
@@ -395,23 +441,34 @@ function stamp(s) {
   return h.toString(36);
 }
 
-/** A course's own loading screen, fetched and kept for next time. */
+/** A course's own loading screen, fetched and kept for next time.
+ *
+ * Returns the record, or null if the course ships no scene — in which case
+ * Munin's raven stays, which is a slot left empty and not a failure. Throws
+ * only on the network, so a caller can tell "no scene" from "not now".
+ */
+async function cacheBootScene(c) {
+  if (isLocal(c.id)) return null;                  // an imported deck has no files
+  const [html, css] = await Promise.all([
+    fetch(c.base + 'boot.html', { cache: 'no-cache' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(c.base + 'boot.css', { cache: 'no-cache' }).then((r) => (r.ok ? r.text() : '')),
+  ]);
+  if (!html) return null;
+  const b = {
+    html, css, line: c.boot.line, accent: c.accent,
+    from: c.id + '-' + stamp(html + css),
+  };
+  writeBootCache(c.id, b);
+  return b;
+}
+
+/** The same, for the course opening right now: kept, and put on the screen. */
 async function loadBootScene(c) {
-  if (isLocal(c.id)) return;                       // an imported deck has no files
   try {
-    const [html, css] = await Promise.all([
-      fetch(c.base + 'boot.html', { cache: 'no-cache' }).then((r) => (r.ok ? r.text() : '')),
-      fetch(c.base + 'boot.css', { cache: 'no-cache' }).then((r) => (r.ok ? r.text() : '')),
-    ]);
-    if (!html) return;                             // no scene of its own: Munin's raven stays
-    const b = {
-      html, css, line: c.boot.line, accent: c.accent,
-      from: c.id + '-' + stamp(html + css),
-    };
-    applyBoot(b);
-    writeBootCache(c.id, b);
+    const b = await cacheBootScene(c);
+    if (b) applyBoot(b);
   } catch (e) {
-    // Offline, or a course that ships no scene. The default is already drawn.
+    // Offline. The default is already drawn.
   }
 }
 
@@ -802,14 +859,6 @@ async function renderShelf(asOverlay) {
     <p class="shelf-note">${asOverlay ? 'tap outside a tile to go back' : 'pick a course — it opens straight here next time'}</p>
   </div>`;
   document.body.appendChild(el);
-  // The loading screen goes when there is something to replace it with, not
-  // when we start looking. Hidden first, a registry that hangs left a blank
-  // white page for as long as the request took — which is for ever, on the
-  // kind of connection that hangs rather than fails.
-  if (!asOverlay) {
-    const boot = document.getElementById('boot');
-    if (boot) boot.hidden = true;
-  }
   el.querySelector('#shelf-theme').addEventListener('click', () => MuninTheme.cycle());
   el.querySelector('#shelf-install-btn').addEventListener('click', () => MuninInstall.prompt());
   MuninTheme.apply();
@@ -876,6 +925,14 @@ async function renderShelf(asOverlay) {
     localStorage.setItem(MUNIN.lastKey, tile.dataset.course);
     location.reload();
   });
+
+  // Last, and only now: the shelf is on the page and every control on it
+  // answers. A splash held over a shelf whose buttons are not wired yet is a
+  // second of the app ignoring you.
+  if (!asOverlay) {
+    await dismissBoot();
+    prefetchScenes(metas);
+  }
 }
 
 /* Inside a course: a small pill that overlays the shelf. It never clears the

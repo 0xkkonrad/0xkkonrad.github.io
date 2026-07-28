@@ -2473,11 +2473,9 @@ function boundExamInputs() {
  * A course cannot hold its own — you would change colour by changing deck. */
 function applyTheme() {
   MuninTheme.apply();
-  const chosen = MuninTheme.get();
-  // Not the same sentence: an install that has chosen nothing is following the
-  // device, and saying "Colour theme: light" would claim a choice it never made.
-  $('#theme-btn').title = chosen ? `Colour theme: ${chosen}`
-    : `Colour theme: following your device (${MuninTheme.showing()})`;
+  // What it says, not what was chosen: light is light whether you picked it or
+  // simply never picked anything, and the button offers the other one either way.
+  $('#theme-btn').title = `Colour theme: ${MuninTheme.showing()}`;
 }
 
 /* ─────────────────────────── wiring ─────────────────────────── */
@@ -3049,9 +3047,16 @@ async function boot() {
   renderNotice();
   renderOffline();
   wire();
-  $('#boot').hidden = true;
+  // The app goes up behind the loading screen, and the screen comes down over
+  // a page that is already finished: MuninBoot.dismiss() fades, and a fade
+  // reveals whatever is behind it. Hiding first showed a blank frame.
   $('#app').hidden = false;
   go('home');
+  // Not awaited: everything below is setup with nothing to show for it, and it
+  // may as well happen behind the splash rather than after it. The failure
+  // paths above return before this line, so a deck that could not be read
+  // keeps the screen — and its explanation — up.
+  MuninBoot.dismiss().catch(console.error);
 
   if (globalThis.DSSync) {
     DSSync.init({

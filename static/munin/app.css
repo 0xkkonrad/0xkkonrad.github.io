@@ -76,29 +76,16 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141519;
-    --surface: #1c1e25;
-    --surface-2: #272a33;
-    --line: #343742;
-    --line-strong: #f1efe8;
-    --stroke: #f1efe8;
-    --text: #f1efe8;
-    --muted: #a6a7b2;
-    --accent: #35917f;
-    --accent-ink: #141519;
-    --flag: #ffd54a;
-    --g1: #ff8a75;
-    --g2: #f0b64a;
-    --g3: #5ed49a;
-    --g4: #35917f;
-    --warn: #f0b64a; --fig-blu: #6fb2ff;
-    color-scheme: dark;
-  }
-}
+/* There is no prefers-color-scheme block, on purpose. Munin's default is LIGHT,
+ * not the device's setting (28 July 2026): the app is drawn — paper, ink and a
+ * bird — and paper is what it is drawn on. A media query here would also paint
+ * the first frame dark on a dark phone and then snap to light the moment
+ * munin.js sets data-theme, because the stylesheet is parsed before any script
+ * runs. Dark is a choice you make with the button, and it is remembered. */
 
-/* The in-app toggle must beat the media query in both directions. */
+/* The in-app toggle. Both are declared, not just dark, because :root above is
+ * the light theme and these have to be able to say so louder than a course's
+ * injected accent. */
 :root[data-theme="light"] {
   --bg: #f0eee7; --surface: #fffdf7; --surface-2: #e6e3da;
   --line: #d5d1c6; --line-strong: #121214; --stroke: #121214;
@@ -1182,7 +1169,17 @@ mark {
  * gap below with nothing to sit between. The scene and its caption are one
  * thing; they are centred as one. */
 .boot { position: fixed; inset: 0; display: grid; place-items: center;
-  align-content: center; color: var(--muted); gap: 12px; }
+  align-content: center; color: var(--muted); gap: 12px;
+  background: var(--bg); z-index: 95;
+  transition: opacity 220ms ease; }
+/* Above everything the app puts on screen — the shelf pill is 80, the toast 70,
+ * the lightbox 60 — because the page behind is fully built before the screen
+ * comes down, and anything that outranks it appears ON the splash. The pill
+ * did: `courses` floated over the loading raven for the whole first second. */
+/* Held for SPLASH.hold in munin.js, then faded over SPLASH.fade — keep the two
+ * numbers together. The app is already behind it by then; this is what reveals
+ * it, so `hidden` may only be set once the fade has finished. */
+.boot.going { opacity: 0; pointer-events: none; }
 .boot[hidden] { display: none; }
 .boot p { font-size: .88rem; text-transform: lowercase; }
 .boot-scene { display: grid; place-items: center; }
@@ -1190,10 +1187,17 @@ mark {
 /* pathLength="1" renormalises the path whatever its real geometry, so one rule
  * draws any drawing on — no measured length per doodle, and redrawing a doodle
  * cannot silently break its own animation. */
-.boot-raven path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: bootdraw 1.5s ease-out forwards; }
+/* 600ms, under munin.js's 800ms hold: the raven finishes drawing itself before
+ * anything fades, which is the whole point of holding the screen. It was 1.5s
+ * back when the screen was gone in three frames and the duration was academic.
+ * A course's boot.css owns this number for its own scene — and has the same
+ * ceiling to fit under. */
+.boot-raven path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: bootdraw .6s ease-out forwards; }
 @keyframes bootdraw { to { stroke-dashoffset: 0; } }
-/* Reduced motion leaves the drawing finished, not half-drawn. */
+/* Reduced motion leaves the drawing finished, not half-drawn. The splash is
+ * still held: a held screen is not motion, and the drawing is the point. */
 @media (prefers-reduced-motion: reduce) {
+  .boot { transition: none; }
   .boot-raven { animation: none; }
   .boot-raven path { stroke-dashoffset: 0; animation: none; }
 }
