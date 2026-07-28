@@ -15,7 +15,7 @@
  * BUILD is stamped by scripts/deploy-to-kkonrad.sh from the content actually
  * shipped: without that, a cache-first shell never updates.
  */
-const BUILD = { shell: '17d0d9b47d', courses: { 'day-skipper': '9beeb57dbb', 'competent-crew': '593597f64b' } };
+const BUILD = { shell: '1b282a1eb3', courses: { 'day-skipper': '6b322ca06d', 'competent-crew': '593597f64b' } };
 const SHELL_V = 'munin-shell-' + BUILD.shell;
 const courseV = (id) => 'munin-course-' + id + '-' + (BUILD.courses[id] || 'dev');
 const SCOPE = new URL('./', self.registration.scope).pathname;
@@ -80,6 +80,26 @@ function ok(r, expected) {
   return got === expected;
 }
 
+/** A login portal is HTML too. The application document has two stable,
+ * structural marks that neither course content nor an origin-wide error page
+ * owns; require both before storing or serving a navigation as Munin. */
+async function appPageOk(r) {
+  if (!ok(r, 'text/html')) return false;
+  try {
+    const html = await r.clone().text();
+    return /\bid=["']app["']/.test(html)
+      && /<script\b[^>]*\bsrc=["'][^"']*munin\.js["']/i.test(html);
+  } catch (e) { return false; }
+}
+
+async function cachedAppPage() {
+  for (const key of ['./', 'index.html']) {
+    const hit = await caches.match(key, { ignoreSearch: true });
+    if (await appPageOk(hit)) return hit;
+  }
+  return null;
+}
+
 // The install screenshots in shots/ are deliberately not in here: the browser
 // reads them once, at install time, when it is by definition online. Precaching
 // half a megabyte of shop window into the offline shell is the wrong trade.
@@ -123,22 +143,72 @@ const SHELL = [
 // `endsWith('')` is true of every path, which turned the runtime cache into
 // "keep a permanent copy of every same-origin GET this page ever makes".
 const SHELL_FILES = SHELL.filter((s) => s !== './');
+const REQUIRED_SHELL = SHELL.filter((file) =>
+  !file.startsWith('fonts/') && !/^icon-/.test(file));
+const REQUIRED_COURSE = ['course.json', 'cards.json'];
+
+async function cacheComplete(name, files, prefix = '') {
+  if (!(await caches.keys()).includes(name)) return false;
+  const cache = await caches.open(name);
+  for (const file of files) {
+    const hit = await cache.match(prefix + file);
+    if (!ok(hit, typeFor(file))) return false;
+    if (!prefix && (file === './' || file === 'index.html')
+        && !(await appPageOk(hit))) return false;
+  }
+  return true;
+}
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
+    const existed = (await caches.keys()).includes(SHELL_V);
     const shell = await caches.open(SHELL_V);
-    await shell.addAll(SHELL);
+    // One file at a time, because addAll is all-or-nothing over two dozen of
+    // them: a single 404 — a partial rsync, a CDN that has not caught up — used
+    // to reject the whole install, so skipWaiting() never ran and a first-ever
+    // registration was thrown away. The app then had no offline at all, and no
+    // way to say so, while Progress went on promising the cards work offline
+    // once you have opened it. A missing font is not a reason to have no shell,
+    // exactly as one bad course is not a reason to have no app (below).
+    await Promise.all(SHELL.map((f) => shell.add(f)
+      .catch((e) => console.warn('munin: shell ' + f + ' not cached', e))));
+    // caches.open() made the cache before a byte was fetched. If nothing at all
+    // landed — installed with no network, or a deploy that is simply not there
+    // — an empty cache under the CURRENT name is a shell that answers nothing
+    // and that activate will never sweep, because current is exactly what it
+    // keeps. Drop it and let the next install start from nothing instead.
+    if (!(await cacheComplete(SHELL_V, REQUIRED_SHELL))) {
+      if (!existed) await caches.delete(SHELL_V);
+      throw new Error('munin: required offline shell is incomplete');
+    }
     // Each course into its own cache, and one course that will not install is
     // not a reason for the app to have no offline shell at all.
     for (const id of (await readCourses()) || []) {
       const cache = await caches.open(courseV(id));
+      let healthy = true;
       for (const f of COURSE_FILES) {
-        // add() rejects on a 404, and most courses ship only some of these.
-        // Optional files are meant to be missing; anything else is worth
-        // saying, because a course cached without its cards is a course that
-        // opens offline to nothing and gives no clue why.
-        await cache.add('courses/' + id + '/' + f)
-          .catch((e) => console.warn('munin: ' + id + '/' + f + ' not cached', e));
+        const path = 'courses/' + id + '/' + f;
+        try {
+          const r = await fetch(path, { cache: 'reload' });
+          // Optional 404 is part of the course format. A server error or a
+          // captive-portal body is a partial deploy, and must reject this
+          // generation rather than evicting the last complete one.
+          if (r.status === 404 && !REQUIRED_COURSE.includes(f)) continue;
+          if (!ok(r, typeFor(f))) {
+            healthy = false;
+            console.warn('munin: ' + id + '/' + f + ' returned an invalid response');
+            continue;
+          }
+          await cache.put(path, r);
+        } catch (e) {
+          healthy = false;
+          console.warn('munin: ' + id + '/' + f + ' not cached', e);
+        }
+      }
+      if (!healthy
+          || !(await cacheComplete(courseV(id), REQUIRED_COURSE, 'courses/' + id + '/'))) {
+        await caches.delete(courseV(id));
+        console.warn('munin: required files for ' + id + ' are incomplete; keeping any older cache');
       }
     }
     await self.skipWaiting();
@@ -148,7 +218,23 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const ids = await readCourses();
-    const live = new Set([SHELL_V].concat((ids || []).map(courseV)));
+    const live = new Set([SHELL_V]);
+    for (const id of ids || []) {
+      const current = courseV(id);
+      if (await cacheComplete(current, REQUIRED_COURSE, 'courses/' + id + '/')) {
+        live.add(current);
+      } else {
+        // A partial course update is not evidence that the last offline copy
+        // should be erased. Runtime fallbacks use caches.match(), so the older
+        // generation remains usable until a complete one installs.
+        for (const name of await caches.keys()) {
+          if (name.startsWith('munin-course-' + id + '-')
+              && await cacheComplete(name, REQUIRED_COURSE, 'courses/' + id + '/')) {
+            live.add(name);
+          }
+        }
+      }
+    }
     for (const k of await caches.keys()) {
       if (!/^munin-/.test(k) || live.has(k)) continue;
       // Only Munin's own caches, and only the ones no longer current: a course
@@ -174,16 +260,32 @@ self.addEventListener('message', (e) => {
     e.waitUntil((async () => {
       const total = e.data.urls.length;
       let done = 0, failed = 0;
+      const requestId = typeof e.data.requestId === 'string' ? e.data.requestId : '';
+      const client = e.source;
       const say = async (type) => {
-        const cs = await self.clients.matchAll();
-        cs.forEach((c) => c.postMessage({ type, done, total, failed }));
+        try {
+          if (client && client.postMessage) {
+            client.postMessage({ type, done, total, failed, requestId });
+          }
+        } catch (err) { /* the requesting tab may close while caching continues */ }
       };
       for (const u of e.data.urls) {
         try {
+          const url = new URL(u, location.href);
+          const id = url.origin === location.origin ? courseOf(url.pathname) : null;
+          if (!id || !url.pathname.includes('/courses/' + id + '/img/')) {
+            throw new Error('not a course image');
+          }
           // A course's diagrams belong in that course's cache, so pulling one
           // course down for a flight does not push another one out.
-          const cache = await caches.open(cacheFor(new URL(u, location.href).pathname));
-          if (!(await cache.match(u))) await cache.add(u);
+          const cache = await caches.open(cacheFor(url.pathname));
+          const existing = await cache.match(url.href);
+          if (existing && !ok(existing, 'image/png')) await cache.delete(url.href);
+          if (!existing || !ok(existing, 'image/png')) {
+            const response = await fetch(url.href, { cache: 'reload' });
+            if (!ok(response, 'image/png')) throw new Error('not a valid image response');
+            await cache.put(url.href, response.clone());
+          }
         } catch (err) {
           failed++;   // one missing diagram must not abort the rest
         }
@@ -194,6 +296,62 @@ self.addEventListener('message', (e) => {
     })());
   }
 });
+
+/* A page and the code it names have to come from the same deploy.
+ *
+ * The page is network-first and app.js/app.css are cache-first, so a deploy
+ * that renamed one element id in index.html AND in app.js — an ordinary
+ * refactor — handed the new page the old code: app.js threw on an element that
+ * was no longer there, dismissBoot() was never reached, and the held splash sat
+ * saying "loading deck…" with no button and no message. The next load recovered,
+ * which is no comfort to whoever met the first one.
+ *
+ * So when the page off the network is not the page we hold, the code cached
+ * beside it is a deploy behind by definition, and for the rest of that load the
+ * shell's scripts and stylesheets ask the network before the cache. The
+ * strategy is unchanged — they are still cached, still revalidated, and a
+ * network that will not answer still falls back to the copy we have, which is
+ * exactly what it did before. This only declines to serve one page two
+ * generations of itself while it still has the choice.
+ *
+ * The cached page doubles as the mark for which generation the cached CODE is,
+ * which is why it is only moved once the code has actually been caught up (see
+ * the navigation branch). Moving it on its own moved the dead load from the
+ * first refresh after a deploy to the second, which is not a fix. */
+const CODE = /\.(js|css)$/;
+let mixedShell = false;
+
+/** Is the page off the network a different page from the one we hold? */
+async function pageChanged(res) {
+  try {
+    const had = await (await caches.open(SHELL_V)).match('./');
+    if (!had) return false;            // nothing yet to be out of step with
+    return (await had.text()) !== (await res.text());
+  } catch (e) { return false; }        // a page we cannot compare is not evidence
+}
+
+/** Pull the shell's scripts and stylesheets down again, and say so only if
+ *  every one of them is now what the network is serving. Anything less and the
+ *  old page stays cached, so the next load treats the code as stale again —
+ *  which is the right answer rather than a failure. */
+async function catchCodeUp() {
+  try {
+    const c = await caches.open(SHELL_V);
+    const stale = (await c.keys()).filter((k) => CODE.test(new URL(k.url).pathname));
+    const got = await Promise.all(stale.map(async (k) => {
+      // 'reload' because the browser's own HTTP cache is just as capable of
+      // handing back the copy we are trying to get away from.
+      const r = await fetch(k.url, { cache: 'reload' }).catch(() => null);
+      return ok(r, typeFor(new URL(k.url).pathname)) ? { key: k, response: r } : null;
+    }));
+    // Validate the entire code set before changing any of it. Otherwise a
+    // failure late in the list leaves the cached old page beside half-new code
+    // even though this function correctly reports "not caught up".
+    if (!got.every(Boolean)) return false;
+    await Promise.all(got.map(({ key, response }) => c.put(key, response)));
+    return true;
+  } catch (e) { return false; }
+}
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -206,16 +364,24 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.endsWith('cards.json') || url.pathname.endsWith('videos.json')
       || url.pathname.endsWith('figures.json')) {
     e.respondWith(
-      fetch(req).then((r) => {
+      fetch(req).then(async (r) => {
         // Only a real deck gets cached. One 404 during a deploy used to become
         // the permanent offline copy, and the app then failed exactly when
         // being offline was the point.
         if (ok(r, 'application/json')) {
           const copy = r.clone();
           caches.open(cacheFor(url.pathname)).then((c) => c.put(req, copy));
+          return r;
         }
-        return r;
-      }).catch(() => caches.match(req))
+        // A server that answers is not necessarily a server with this deploy:
+        // 404/503 and captive-portal HTML should fall back to the last valid
+        // complete course just like a rejected fetch does.
+        const hit = await caches.match(req);
+        return ok(hit, 'application/json') ? hit : r;
+      }).catch(async () => {
+        const hit = await caches.match(req);
+        return ok(hit, 'application/json') ? hit : Response.error();
+      })
     );
     return;
   }
@@ -226,18 +392,30 @@ self.addEventListener('fetch', (e) => {
     const isRoot = url.pathname === SCOPE || url.pathname === SCOPE + 'index.html';
     e.respondWith(
       fetch(req)
-        .then((r) => {
+        .then(async (r) => {
+          if (isRoot && !(await appPageOk(r))) {
+            return (await cachedAppPage()) || r;
+          }
           // Only the app's own page may be stored as the shell. This used to
           // cache *any* navigation in scope, so opening a sibling file once
           // meant the app booted into that file for ever after, offline.
-          if (isRoot && ok(r, 'text/html')) {
+          if (isRoot) {
             const copy = r.clone();
-            caches.open(SHELL_V).then((c) => c.put('./', copy));
+            // Awaited, because the answer has to be known before the browser
+            // parses this page and asks for the scripts it names.
+            const changed = await pageChanged(r.clone());
+            mixedShell = changed;
+            // A new page is safe only beside all of its code. If even one
+            // script/style is a partial-deploy response, serve the complete old
+            // page too; mixing either direction is a dead loading screen.
+            if (changed && !(await catchCodeUp())) {
+              return (await cachedAppPage()) || r;
+            }
+            await (await caches.open(SHELL_V)).put('./', copy);
           }
           return r;
         })
-        .catch(() => caches.match('./', { ignoreSearch: true })
-          .then((hit) => hit || caches.match('index.html', { ignoreSearch: true })))
+        .catch(async () => (await cachedAppPage()) || Response.error())
     );
     return;
   }
@@ -261,7 +439,9 @@ self.addEventListener('fetch', (e) => {
   if (isShell || isCourseFile) {
     // Stale while revalidate: instant from cache, but a shipped fix to app.js
     // — or a course's redrawn loading screen — lands on the next load instead
-    // of never.
+    // of never. Except for the shell's own code on a load whose page did not
+    // match the one we had cached: see pageChanged.
+    const skewed = mixedShell && isShell && CODE.test(url.pathname);
     e.respondWith(
       caches.match(req).then((hit) => {
         const net = fetch(req).then((r) => {
@@ -269,10 +449,11 @@ self.addEventListener('fetch', (e) => {
           // becomes the cached app.js and the app never boots again.
           if (ok(r, typeFor(url.pathname))) {
             caches.open(cacheFor(url.pathname)).then((c) => c.put(req, r.clone()));
+            return r;
           }
-          return r;
+          return hit || r;
         }).catch(() => hit);
-        return hit || net;
+        return skewed ? net : (hit || net);
       })
     );
     return;

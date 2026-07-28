@@ -3,7 +3,9 @@
  * licence below. Anki has written its .apkg payloads zstd-compressed since
  * 2.1.50, and no browser exposes a zstd decoder; this is the only third-party
  * code in Munin, and it is here because hand-rolling a compression codec is a
- * bad trade. Do not edit — replace wholesale from npm if it ever needs a bump.
+ * bad trade. Keep changes isolated: Munin passes an output ceiling to the
+ * streaming decoder so an untrusted frame cannot allocate an
+ * attacker-declared multi-gigabyte window before the caller sees any output.
  *
  * MIT License. Copyright (c) 2020 Arjun Barrett.
  *
@@ -98,7 +100,7 @@ var rb = function (d, b, n) {
 };
 var b4 = function (d, b) { return (d[b] | (d[b + 1] << 8) | (d[b + 2] << 16) | (d[b + 3] << 24)) >>> 0; };
 // read Zstandard frame header
-var rzfh = function (dat, w) {
+var rzfh = function (dat, w, max) {
     var n3 = dat[0] | (dat[1] << 8) | (dat[2] << 16);
     if (n3 == 0x2FB528 && dat[3] == 253) {
         // Zstandard
@@ -126,6 +128,8 @@ var rzfh = function (dat, w) {
             ws = wb + (wb >> 3) * (dat[5] & 7);
         }
         if (ws > 2145386496)
+            err(1);
+        if (max && (ws > max || (fss && fss > max)))
             err(1);
         var buf = new u8((w == 1 ? (fss || ws) : w ? 0 : ws) + 12);
         buf[0] = 1, buf[4] = 4, buf[8] = 8;
@@ -683,8 +687,9 @@ var Decompress = /*#__PURE__*/ (function () {
      * Creates a Zstandard decompressor
      * @param ondata The handler for stream data
      */
-    function Decompress(ondata) {
+    function Decompress(ondata, max) {
         this.ondata = ondata;
+        this.max = max;
         this.c = [];
         this.l = 0;
         this.z = 0;
@@ -723,7 +728,7 @@ var Decompress = /*#__PURE__*/ (function () {
                 this.c = [];
                 this.l = 0;
             }
-            if (typeof (this.s = rzfh(chunk)) == 'number')
+            if (typeof (this.s = rzfh(chunk, null, this.max)) == 'number')
                 return this.push(chunk, final);
         }
         if (typeof this.s != 'number') {

@@ -156,7 +156,9 @@
 
     <div class="dock" id="dock">
       <button class="primary big" id="reveal-btn">Show answer</button>
-      <p class="grade-ask" id="grade-ask" hidden>Did you get it right?</p>
+      <!-- `away`, not `hidden`: the line keeps its place in the dock while the
+           question is up, so revealing the answer does not shrink the card. -->
+      <p class="grade-ask away" id="grade-ask">Did you get it right?</p>
       <div class="grades" id="grade-row" hidden>
         <button class="grade g1" data-g="1"><b>Again</b><small id="iv1"></small></button>
         <button class="grade g2" data-g="2"><b>Hard</b><small id="iv2"></small></button>
@@ -369,6 +371,13 @@
     </svg>
   </div>
   <p id="boot-line">Loading…</p>
+  <!-- The way off this screen. It is opaque, it covers the window and it ranks
+       above the `courses` pill, so a deck that will not load or will not
+       validate used to be the end of the app — the stored course still pointed
+       at the broken one, and reloading landed back here. Revealed by app.js on
+       those two paths only; there is nothing to escape from while it is
+       loading. -->
+  <button class="ghost" id="boot-back" hidden>Back to the courses</button>
 </div>
 <div class="toast away" id="toast" role="status" aria-live="polite"></div>
 
@@ -377,7 +386,10 @@
 <div class="unlock away" id="unlock" role="status" aria-live="polite">
   <span id="unlock-art" aria-hidden="true"></span>
   <span class="u-txt">
-    <span class="u-k">unlocked</span>
+    <!-- The word is written by app.js and taken out again when the card
+         leaves. As markup it sat in a live region for ever, so a screen reader
+         read the picker out as "skip to content, unlocked, munin". -->
+    <span class="u-k" id="unlock-key"></span>
     <b id="unlock-title"></b>
     <small id="unlock-sub"></small>
   </span>

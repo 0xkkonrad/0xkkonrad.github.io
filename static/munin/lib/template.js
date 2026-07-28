@@ -41,17 +41,50 @@ function split(body) {
   return { field: bits.pop().trim(), filters: bits.map((f) => f.trim().toLowerCase()) };
 }
 
-const CLOZE = /\{\{c(\d+)::([\s\S]*?)\}\}/g;
+/** Valid cloze spans in one forward pass. A lazy global regex restarted its
+ * search from every unterminated `{{c1::` prefix, making malformed fields
+ * quadratic. */
+function* clozes(text) {
+  const source = String(text ?? '');
+  let search = 0;
+  for (;;) {
+    const start = source.indexOf('{{c', search);
+    if (start < 0) return;
+    let at = start + 3;
+    const digits = at;
+    while (at < source.length && source.charCodeAt(at) >= 48 && source.charCodeAt(at) <= 57) at++;
+    if (at === digits || source.slice(at, at + 2) !== '::') {
+      search = start + 3;
+      continue;
+    }
+    const bodyAt = at + 2;
+    const end = source.indexOf('}}', bodyAt);
+    if (end < 0) return;
+    yield {
+      start, end: end + 2,
+      n: Number(source.slice(digits, at)),
+      body: source.slice(bodyAt, end),
+    };
+    search = end + 2;
+  }
+}
+
+const hasCloze = (text) => !clozes(text).next().done;
 
 /** The question side blanks one ordinal and shows the rest. */
 export function cloze(text, ord, answer) {
-  return String(text ?? '').replace(CLOZE, (whole, n, body) => {
-    const [content, hint] = splitHint(body);
-    if (Number(n) !== ord + 1) return content;         // another card's blank
-    return answer
-      ? `<span class="cloze">${content}</span>`
-      : `<span class="cloze">[${hint || '...'}]</span>`;
-  });
+  const source = String(text ?? '');
+  let out = '', at = 0;
+  for (const span of clozes(source)) {
+    out += source.slice(at, span.start);
+    const [content, hint] = splitHint(span.body);
+    out += span.n !== ord + 1 ? content
+      : answer
+        ? `<span class="cloze">${content}</span>`
+        : `<span class="cloze">[${hint || '...'}]</span>`;
+    at = span.end;
+  }
+  return out + source.slice(at);
 }
 
 function splitHint(body) {
@@ -62,9 +95,8 @@ function splitHint(body) {
 /** Which cloze numbers a note actually uses — Anki makes one card per number. */
 export function clozeOrds(text) {
   const out = new Set();
-  for (const m of String(text ?? '').matchAll(CLOZE)) {
-    const n = Number(m[1]);
-    if (n >= 1) out.add(n - 1);
+  for (const span of clozes(text)) {
+    if (span.n >= 1) out.add(span.n - 1);
   }
   return out;
 }
@@ -96,11 +128,9 @@ function applyFilters(value, filters, ctx, isCloze) {
   }
   // A cloze notetype whose template forgot the filter still has to blank its
   // deletions, or every card shows every answer.
-  if (isCloze && !filters.includes('cloze') && CLOZE.test(v)) {
-    CLOZE.lastIndex = 0;
+  if (isCloze && !filters.includes('cloze') && hasCloze(v)) {
     v = cloze(v, ctx.ord, ctx.answer);
   }
-  CLOZE.lastIndex = 0;
   return v;
 }
 

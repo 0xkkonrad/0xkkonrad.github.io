@@ -50,6 +50,21 @@ function slug(s, taken) {
   return k;
 }
 
+/* A deck's name is a heading and a shelf row, not a document. Anki will happily
+ * export one twelve thousand characters long, and stored whole it made the
+ * receipt heading ten thousand pixels tall and pushed the shelf's own controls
+ * — "+ your own deck", the other decks, the ✕ — seventeen screens down, with no
+ * cure but to find that ✕ and delete the deck. Hierarchical names of a few
+ * hundred characters are ordinary; this is where they stop. Counted in code
+ * points, so the cut never lands inside one. */
+const TITLE_MAX = 120;
+function cap(s) {
+  const t = String(s).trim();
+  const chars = [...t];
+  if (chars.length <= TITLE_MAX) return t;
+  return chars.slice(0, TITLE_MAX - 1).join('').trimEnd() + '…';
+}
+
 function hash(s) {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -75,10 +90,24 @@ function commonPrefix(paths) {
 /* Anki keeps media as <img src=…> in the field text and audio as a [sound:…]
  * marker. Both become numbered references that mean nothing outside this deck,
  * so a card can never reach for the network and a stored deck is self-contained.
- */
-const MEDIA_TAG = /<(?:img|audio|video|source)\b/gi;
+ *
+ * <video> and <source> used to be on this list, and the omission is now the
+ * decision: html.js keeps neither, so no card can ever show one. Rewriting them
+ * anyway unpacked the file, stored it, and billed it to the receipt as a picture
+ * that landed — five megabytes of video charged to a deck that displays none of
+ * it, on the one screen whose whole job is to be honest about what happened.
+ * Munin studies flashcards; a video it cannot play is better admitted than
+ * carried. It gets a line of its own below instead. */
+const MEDIA_TAG = /<(?:img|audio)\b/gi;
+const OTHER_MEDIA = /<(?:video|source)\b/i;
 const SRC_ATTR = /\bsrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i;
-const SOUND = /\[sound:([^\]]{1,300})\]/gi;
+/* No length bound on the name. The bound was 300 characters, and a marker over
+ * it simply did not match: not rewritten, not counted as missing, and left on
+ * the card as the literal text "[sound:bbbb…bbbb.mp3]" under a receipt saying
+ * nothing was lost. What the bound was really guarding — a stray "[sound:" in
+ * prose putting a paragraph on the receipt as a filename — is guarded where it
+ * belongs, in `index` below, which is what writes that line. */
+const SOUND = /\[sound:([^\]]+)\]/gi;
 
 /* Media can never reach the network — every reference is rewritten to a number.
  * A link the deck's author wrote is different: it is content, and stripping it
@@ -126,7 +155,10 @@ function mediaRewriter(col, acc) {
         return i;
       }
     }
-    acc.missing.add(name);
+    // What goes on the receipt is read by a person, so it is a name-sized thing
+    // whatever the file said. A `[sound:` opened in prose can hand this a whole
+    // paragraph.
+    acc.missing.add(name.length > 90 ? name.slice(0, 90) + '…' : name);
     return null;
   };
   // src attributes first: the audio element written for a [sound:…] marker has
@@ -179,11 +211,15 @@ export async function buildDeck(col, opts = {}) {
   };
 
   const byDeck = new Map();       // deck name → cards
-  const kinds = new Map();        // note type name → cards made
-  let latex = 0, suspended = 0, cloze = 0, links = 0;
+  /* What each card would contribute to the receipt, kept beside the card rather
+   * than added up on the spot. The media pass below can still drop a card, and
+   * a tally taken before that describes cards that are not in the deck: "2
+   * kept" two lines above "made from 2 kinds of note: 4 Basic, 1 Hinted", and a
+   * promise to study a suspended card that nothing will ever show. */
+  const tally = new Map();        // card id → what it counts towards
+  let latex = 0;
   const seen = new Set();
   const ids = new Set();
-  let duplicates = 0;
 
   let done = 0;
   for (const row of rows) {
@@ -245,16 +281,10 @@ export async function buildDeck(col, opts = {}) {
     if (isEmpty(q)) { drop('their question side came out empty', sample(rawA)); continue; }
     if (isEmpty(a)) { drop('their answer side came out empty', sample(rawQ)); continue; }
 
-    if (nt.cloze) cloze++;
-    if (Number(row.queue) === -1) suspended++;
-    kinds.set(nt.name, (kinds.get(nt.name) || 0) + 1);
-
-    if (LINK.test(q) || LINK.test(a)) links++;
-
     // A NUL cannot appear in cleaned HTML, so it is a separator that no card
     // can fake: without one, "ab"+"c" and "a"+"bc" are the same duplicate.
     const key = q + '\u0000' + a;
-    if (seen.has(key)) duplicates++;
+    const duplicate = seen.has(key);
     seen.add(key);
 
     // Not Number(): two ids either side of 2^53 collapse onto the same value,
@@ -264,6 +294,15 @@ export async function buildDeck(col, opts = {}) {
       .toString(36);
     while (ids.has(id)) id += '-';       // a file with duplicate rows still counts twice
     ids.add(id);
+    tally.set(id, {
+      kind: nt.name,
+      cloze: nt.cloze,
+      suspended: Number(row.queue) === -1,
+      duplicate,
+      link: LINK.test(q) || LINK.test(a),
+      // Counted off the rendered field, before clean() throws the element away.
+      video: OTHER_MEDIA.test(rawQ) || OTHER_MEDIA.test(rawA),
+    });
     const card = { i: id, q, a };
     if (!byDeck.has(deckName)) byDeck.set(deckName, []);
     byDeck.get(deckName).push(card);
@@ -275,6 +314,18 @@ export async function buildDeck(col, opts = {}) {
   const damaged = [];
   const lost = new Set();
   for (let i = 0; i < acc.list.length; i++) {
+    if (i % 20 === 0) {
+      say(i, acc.list.length, 'unpacking media');
+      /* And hand the screen back, the way the card loop does. In a legacy
+       * export every member is deflated, so `zip.read` awaits a real
+       * DecompressionStream and this loop painted by accident. In a current one
+       * the members are stored and zstd-decoded in line, so `mediaBytes` never
+       * suspends: two thousand pictures resolved two thousand settled promises
+       * as microtasks and froze the tab for fourteen seconds, at a hundred per
+       * cent, on a screen still saying "building cards". Nothing could be
+       * cancelled either, which is the part that is not just cosmetic. */
+      if (opts.yield) await opts.yield();
+    }
     const name = acc.list[i];
     let bytes = null;
     try {
@@ -293,7 +344,6 @@ export async function buildDeck(col, opts = {}) {
       continue;
     }
     media.push({ i, name, kind: acc.sounds.has(i) ? 'snd' : 'img', bytes });
-    if (i % 20 === 0) say(i, acc.list.length, 'unpacking media');
   }
   /* A reference with no file behind it would render as a broken image for
    * ever. This happens BEFORE the sections are built, because a card can lose
@@ -324,6 +374,23 @@ export async function buildDeck(col, opts = {}) {
   }
   const mediaBytes = media.reduce((n, m) => n + m.bytes.length, 0);
 
+  /* Nothing can be dropped after this point, so this is where the receipt's
+   * counts are taken — over the cards that are actually in the deck. */
+  const kinds = new Map();        // note type name → cards made
+  let suspended = 0, cloze = 0, duplicates = 0, links = 0, video = 0;
+  for (const list of byDeck.values()) {
+    for (const c of list) {
+      const t = tally.get(c.i);
+      if (!t) continue;
+      kinds.set(t.kind, (kinds.get(t.kind) || 0) + 1);
+      if (t.cloze) cloze++;
+      if (t.suspended) suspended++;
+      if (t.duplicate) duplicates++;
+      if (t.link) links++;
+      if (t.video) video++;
+    }
+  }
+
   /* ── sections, from the deck names ── */
   const names = [...byDeck.keys()].sort((a, b) => a.localeCompare(b));
   const paths = names.map((n) => n.split('::'));
@@ -333,9 +400,14 @@ export async function buildDeck(col, opts = {}) {
    * alphabetically named a whole-library export "Chemistry". The file's own name
    * is the thing the person recognises. */
   const fromNames = (prefix.length ? prefix : (names.length === 1 ? paths[0] : [])).join(' · ');
-  const title = clean(fromNames).html.trim().replace(/^[\s·]+|[\s·]+$/g, '')
+  /* Plain text, not HTML. This was clean(…).html, so a deck called "Kanji &
+   * Kana" was stored as "Kanji &amp; Kana" and then escaped again by every one
+   * of the four places that render it — the tab title, the shelf tile and the
+   * receipt heading all read "Kanji &amp;amp; Kana", beside a section list that
+   * had it right. The title is text at every use site; escaping belongs there. */
+  const title = cap(toText(fromNames).replace(/^[\s·]+|[\s·]+$/g, '')
     || String(opts.fileName || '').replace(/\.(apkg|colpkg|zip)$/i, '').trim()
-    || 'Imported deck';
+    || 'Imported deck');
 
   const taken = new Set();
   const sections = [], cards = [];
@@ -345,7 +417,7 @@ export async function buildDeck(col, opts = {}) {
     const label = (rest.length ? rest : [name.split('::').pop()]).join(' · ');
     const k = slug(label || name, taken);
     const list = byDeck.get(name);
-    sections.push({ k, t: label || name, n: list.length, o: i + 1 });
+    sections.push({ k, t: cap(label || name), n: list.length, o: i + 1 });
     for (const c of list) cards.push({ ...c, s: k });
     if (rest.length > 1) groupOf.set(k, rest[0]);
   });
@@ -365,7 +437,7 @@ export async function buildDeck(col, opts = {}) {
     for (const [name, ks] of byGroup) {
       groups.push({
         k: slug(name, gTaken),
-        t: name,
+        t: cap(name),
         s: ks,
         n: ks.reduce((sum, k) => sum + sections.find((s) => s.k === k).n, 0),
       });
@@ -401,6 +473,7 @@ export async function buildDeck(col, opts = {}) {
     duplicates,
     latex,
     links,
+    video,
     media: {
       images: acc.images.size,
       sounds: acc.sounds.size,

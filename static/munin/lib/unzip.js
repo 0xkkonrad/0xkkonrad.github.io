@@ -16,6 +16,11 @@ const CEN = 0x02014b50;       // a central directory entry
 const LOC = 0x04034b50;       // a local file header
 
 const dec = new TextDecoder();
+export const MAX_ZIP_MEMBER_BYTES = 128 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES = 384 * 1024 * 1024;
+const MAX_EXPANSION_RATIO = 500;
+const RATIO_FLOOR = 1024 * 1024;
+const MAX_ENTRIES = 100000;
 
 export class ZipError extends Error {}
 
@@ -87,6 +92,8 @@ export class Zip {
     this.bytes = bytes;
     /** @type {Map<string, object>} */
     this.entries = entries;
+    this.readSizes = new Map();
+    this.totalRead = 0;
   }
 
   has(n) { return this.entries.has(n); }
@@ -96,6 +103,17 @@ export class Zip {
   async read(n) {
     const e = this.entries.get(n);
     if (!e) throw new ZipError(`no member named ${n}`);
+    if (!Number.isSafeInteger(e.size) || !Number.isSafeInteger(e.csize)
+        || e.size < 0 || e.csize < 0) {
+      throw new ZipError(`${n}: impossible size`);
+    }
+    if (e.size > MAX_ZIP_MEMBER_BYTES) {
+      throw new ZipError(`${n}: member is too large to import safely`);
+    }
+    if (e.size > RATIO_FLOOR
+        && (e.csize === 0 || e.size > e.csize * MAX_EXPANSION_RATIO)) {
+      throw new ZipError(`${n}: compressed member would expand disproportionately`);
+    }
     const dv = new DataView(this.bytes.buffer, this.bytes.byteOffset, this.bytes.byteLength);
     if (e.offset + 30 > this.bytes.length || dv.getUint32(e.offset, true) !== LOC) {
       throw new ZipError(`${n}: local header missing`);
@@ -107,19 +125,55 @@ export class Zip {
     const raw = this.bytes.subarray(at, at + e.csize);
     if (raw.length < e.csize) throw new ZipError(`${n}: truncated`);
 
-    if (e.method === 0) return raw;
+    if (e.method === 0) {
+      if (raw.length !== e.size) throw new ZipError(`${n}: stored size does not match`);
+      this.remember(n, raw.length);
+      return raw;
+    }
     if (e.method !== 8) throw new ZipError(`${n}: compression method ${e.method} is not supported`);
     let out;
     try {
       const s = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-      out = new Uint8Array(await new Response(s).arrayBuffer());
+      const reader = s.getReader();
+      const chunks = [];
+      let length = 0;
+      // A dishonest central-directory size is not permission to inflate until
+      // memory runs out. Enforce both the absolute and actual expansion bounds
+      // while chunks arrive, before concatenating them.
+      const ceiling = Math.min(MAX_ZIP_MEMBER_BYTES,
+        Math.max(RATIO_FLOOR, e.csize * MAX_EXPANSION_RATIO));
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.length;
+        if (length > ceiling) {
+          await reader.cancel();
+          throw new ZipError(`${n}: decompressed member is too large or expands disproportionately`);
+        }
+        chunks.push(value);
+      }
+      out = new Uint8Array(length);
+      let at2 = 0;
+      for (const chunk of chunks) { out.set(chunk, at2); at2 += chunk.length; }
     } catch (err) {
+      if (err instanceof ZipError) throw err;
       throw new ZipError(`${n}: could not be decompressed`);
     }
     // A member that inflates short is a corrupt file pretending to be a whole
     // one; letting it through would surface later as unreadable SQLite.
     if (e.size !== 0xFFFFFFFF && out.length !== e.size) throw new ZipError(`${n}: truncated`);
+    this.remember(n, out.length);
     return out;
+  }
+
+  remember(n, size) {
+    const before = this.readSizes.get(n) || 0;
+    const total = this.totalRead - before + size;
+    if (total > MAX_ZIP_TOTAL_BYTES) {
+      throw new ZipError('the package expands to too much data to import safely');
+    }
+    this.readSizes.set(n, size);
+    this.totalRead = total;
   }
 }
 
@@ -128,6 +182,9 @@ export function readZip(bytes) {
   if (bytes.length < 22) throw new ZipError('not a zip file');
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const { count, start } = findDirectory(bytes, dv);
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_ENTRIES) {
+    throw new ZipError('the zip contains too many members');
+  }
 
   const entries = new Map();
   let at = start;

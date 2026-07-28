@@ -159,6 +159,9 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 4px; color: var(--accent);
   padding: calc(10px + env(safe-area-inset-top)) 20px 0;
+  /* The height is held at what an unshrunk row costs, so that narrowing the
+     screen cannot pull the header up under the pill. */
+  min-height: calc(32px + env(safe-area-inset-top));
 }
 /* The line the drawings stand on, written by friezeRule(). Inset by the
    frieze's own padding so it runs from the first drawing's foot to the last —
@@ -174,6 +177,15 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .frieze-rule path {
   fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
 }
+/* Both end before the fixed `courses` pill, which is pinned to this same corner
+   and covered four of the ten drawings at 320 — a ten-slot progress row that
+   read as six. Only while the row reaches the right-hand edge of the screen:
+   past 900px the header is centred in 680 and the pill is well clear of it, and
+   insetting there would leave the frieze stopping short of the title. */
+@media (max-width: 900px) {
+  .frieze { padding-right: 120px; }
+  .frieze-rule { right: 120px; }
+}
 /* Ten drawings have to fit inside a 320px screen without a sideways scrollbar,
    which is what sets this size rather than taste. */
 /* The drawing arrives with a hop and then settles into a breath: the entrance
@@ -186,20 +198,26 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
    with two animations, one inline delay would set both of them and the idle
    would start before the hop had finished. */
 .frieze .dood {
-  width: 22px; height: 22px;
+  /* They shrink to fit whatever is left beside the pill rather than running
+     under it, and stay square as they do — a drawing whose feet leave the line
+     it is standing on is the one thing this row must not do. Flex-shrink, not
+     an arithmetic width, because how many drawings there are is the course's. */
+  flex: 0 1 22px; min-width: 0; width: 22px; height: auto; aspect-ratio: 1;
   transform-origin: 50% 100%;              /* a creature with feet stays on them */
   animation: hop-in .95s ease-out both,
              breathe 3.6s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * .09s),
                    calc(.95s + var(--i, 0) * .09s);
 }
-@media (min-width: 400px) { .frieze .dood { width: 26px; height: 26px; } }
+@media (min-width: 400px) { .frieze .dood { flex-basis: 26px; width: 26px; } }
 /* An empty berth: the drawings you have not earned yet are there in outline, so
    the row reads as a progress bar you happen to like looking at. The class is
    `unearned`, not `ghost` — `.ghost` is already the secondary-button style, and
    a frieze of ten outlined buttons is what that collision looks like. */
 .frieze .unearned { opacity: .22; animation: none; }
-#s-home .top { padding-top: 10px; }
+/* Home's header sits under the frieze rather than under the status bar, so it
+   keeps its own smaller inset — with the same 8px the pill costs everywhere. */
+#s-home .top { padding-top: 18px; }
 
 /* The entrance. This is a hop re-cut to be played once: the version that used
    to loop spent most of its timeline standing still, because a hop every
@@ -246,7 +264,9 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .top {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 12px;
-  padding: calc(20px + env(safe-area-inset-top)) 20px 16px;
+  /* 28, not 20: the fixed `courses` pill is 48px tall and pinned to this
+     corner, and at 20 it clipped the top of the theme button beside it. */
+  padding: calc(28px + env(safe-area-inset-top)) 20px 16px;
 }
 .top h1 {
   margin: 0; font-size: 1.5rem; font-weight: 500; letter-spacing: -.03em;
@@ -434,8 +454,21 @@ button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-colo
 .key i { width: 12px; height: 8px; border: 1px solid var(--stroke); display: block; }
 
 .grade-ask {
-  max-width: 62ch; margin: 0 auto 10px; text-align: center;
+  /* The gap under it is padding, not margin: with the grade row out of the flow
+     a margin here collapses with the dock foot's, and the dock is 8px shorter
+     while the question is up than it is once the answer needs the room. */
+  max-width: 62ch; margin: 0 auto; padding-bottom: 10px; text-align: center;
   font-size: .76rem; color: var(--muted); text-transform: lowercase;
+}
+/* Held empty rather than added on reveal, which is why it hides with a class
+   and not with `hidden`: this line arrives at the exact moment the answer needs
+   the room, and a dock that grows by its height takes that room from the card —
+   138px to 170px, which is 44% of a phone held sideways. */
+.grade-ask.away { visibility: hidden; }
+/* Except where there is nothing to hold it in. On a short screen the band is a
+   twelfth of the window, and four labelled buttons ask the question themselves. */
+@media (max-height: 620px) {
+  .grade-ask { display: none; }
 }
 
 .banner {
@@ -668,7 +701,9 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
 .study-sub { margin: 8px 0 0; font-size: .74rem; color: var(--muted); display: flex; gap: 6px; }
 .study-sect { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .study-left { flex: none; font-variant-numeric: tabular-nums; }
-.study-left::before { content: "\00b7 "; }
+/* `\20`, not a literal space: a space is what *ends* a CSS hex escape, so the
+   one that used to be here was eaten and the header read "terms ·0 done". */
+.study-left::before { content: "\00b7\20"; }
 .progress {
   height: 10px; border-radius: 5px; overflow: hidden;
   border: var(--bw) solid var(--stroke); background: var(--surface);
@@ -725,6 +760,14 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
   border-top: var(--bw) solid var(--stroke);
 }
 .dock > .primary, .grades { max-width: 60ch; margin: 0 auto; }
+/* The same height as the grade row that replaces it, so the dock does not
+   change size under the thumb at the moment the card needs more room. */
+#reveal-btn { min-height: 58px; }
+/* The control that arrives in that rectangle is deaf for a beat — see
+   settleDock() in app.js. Without it the second tap of a double-tap graded a
+   card whose answer had never been painted, or opened the next card's answer
+   before its question had been read. */
+.dock.settling > .primary, .dock.settling .grades { pointer-events: none; }
 
 .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .grade {
@@ -898,6 +941,9 @@ button.plate:active { transform: translate(3px, 3px); box-shadow: none; }
    Right-aligned and arrowed so it does not read as part of the heading. */
 .bgroup-all {
   flex: none; background: none; border: 0; padding: 6px 2px;
+  /* It is a way into the theme, so it is a target: 29px tall was under the 44
+     the thumb needs, at every width. */
+  min-height: 44px;
   color: var(--accent); font: inherit; font-size: .74rem;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
@@ -1018,6 +1064,13 @@ mark {
 
 .mastery { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 .mastery li { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; font-size: .86rem; }
+/* "0 solid · 0 seen · 24 total" is 189px of max-content at every width, and
+   `auto` hands it that before the name gets anything: at 320 a section name was
+   seven lines in a 79px column beside a half-empty count. Below the width where
+   both fit on one line, the count goes under the name instead of beside it. */
+@media (max-width: 430px) {
+  .mastery li { grid-template-columns: minmax(0, 1fr); }
+}
 .mastery .m-n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .76rem; }
 .m-bar {
   grid-column: 1 / -1; height: 10px; border-radius: 5px;
@@ -1054,7 +1107,10 @@ mark {
    bottom it sat directly over Show answer and the four grade buttons. */
 .unlock {
   position: fixed; left: 50%; top: calc(10px + env(safe-area-inset-top));
-  z-index: 75; width: min(340px, calc(100vw - 32px));
+  /* Above the `courses` pill at 80, which shares this top inset and was drawn
+     inside the card — cutting its border, its corner and its shadow. Still
+     under the loading screen at 95. */
+  z-index: 85; width: min(340px, calc(100vw - 32px));
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
   padding: 12px 14px; border-radius: var(--r);
@@ -1067,6 +1123,11 @@ mark {
 .unlock .u-k { display: block; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; }
 .unlock b { display: block; font-size: .92rem; font-weight: 500; text-transform: lowercase; }
 .unlock small { display: block; font-size: .7rem; line-height: 1.4; }
+/* Never `hidden` or `visibility`, same as the toast below: this is a live
+   region, and one that is out of the tree at the moment its text changes is
+   announced unreliably. It is emptied on its way out instead (stowUnlock() in
+   app.js) — the word "unlocked" used to be markup, so the first-run picker was
+   read out as "skip to content, unlocked, munin". */
 .unlock.away { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(-10px); animation: none; }
 @keyframes unlockIn {
   0% { opacity: 0; transform: translateX(-50%) translateY(-26px) scale(.9) rotate(-3deg); }
@@ -1082,7 +1143,8 @@ mark {
   font-size: .88rem;
 }
 .setting input[type=number], .setting input[type=date] {
-  min-height: 42px; text-align: center; flex: none;
+  /* 44, not 42: two pixels under the thumb's floor is still under it. */
+  min-height: 44px; text-align: center; flex: none;
   background: var(--surface); border: var(--bw) solid var(--stroke); border-radius: var(--r-sm);
 }
 .setting input[type=number] { width: 80px; }
@@ -1119,7 +1181,7 @@ mark {
 /* ── lightbox ────────────────────────────────────────────────────── */
 
 .lightbox {
-  position: fixed; inset: 0; z-index: 60;
+  position: fixed; inset: 0; z-index: 90;
   background: #0a0a0b;
   display: flex; flex-direction: column;
 }
@@ -1182,6 +1244,10 @@ mark {
 .boot.going { opacity: 0; pointer-events: none; }
 .boot[hidden] { display: none; }
 .boot p { font-size: .88rem; text-transform: lowercase; }
+/* Hidden until something has gone wrong. The screen is opaque and outranks the
+   `courses` pill, so this is the only control on it — and the only way back to
+   the other course when this one will not load. */
+#boot-back { margin-top: 4px; }
 .boot-scene { display: grid; place-items: center; }
 .boot-raven { width: 52px; height: 52px; color: var(--accent); animation: hop 2.4s ease-in-out infinite; }
 /* pathLength="1" renormalises the path whatever its real geometry, so one rule
@@ -1224,7 +1290,7 @@ mark {
   .btiles { grid-template-columns: repeat(3, 1fr); }
   .sections { grid-template-columns: 1fr; }
   .question { font-size: 1.7rem; }
-  .frieze .dood { width: 30px; height: 30px; }
+  .frieze .dood { flex-basis: 30px; width: 30px; }
   .nav { padding-inline: max(0px, calc(50% - 340px)); }
 }
 

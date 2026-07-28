@@ -284,7 +284,13 @@ export function tagEnd(s, from) {
   return -1;
 }
 
-/** Is there anything on this side of the card at all? */
+/** Is there anything on this side of the card at all?
+ *
+ *  A picture or a sound counts as content — but only one with something behind
+ *  it. clean() throws away a src it cannot serve, so an <img> whose file was
+ *  never in the package, or an <audio> written round a <source>, comes out as
+ *  an empty pair of tags: markup that renders as nothing. Counting that as a
+ *  question kept a blank card and told the receipt nothing was lost. */
 export function isEmpty(html) {
-  return !toText(html) && !/<(img|audio)\b/i.test(String(html ?? ''));
+  return !toText(html) && !/<(?:img|audio)\b[^>]*\ssrc="munin-media:/i.test(String(html ?? ''));
 }

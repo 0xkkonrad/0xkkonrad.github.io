@@ -18,6 +18,9 @@ export const CSS = `
   .imp-x { margin-left: auto; background: none; border: 0; color: var(--muted);
     font: inherit; font-size: 1.2rem; cursor: pointer; min-width: var(--tap);
     min-height: var(--tap); }
+  /* While the deck is being written there is nothing to call off — see keep()
+     in import.js. A control that cannot do anything should not look as if it can. */
+  .imp-x:disabled { opacity: .35; cursor: default; }
   .imp-drop { border: var(--bw) dashed var(--stroke); border-radius: var(--r);
     background: var(--surface); padding: 34px 20px; text-align: center; }
   .imp-drop.over { border-color: var(--accent); color: var(--accent); }
@@ -37,7 +40,12 @@ export const CSS = `
   .imp-bar { height: 6px; margin: 16px auto 0; max-width: 240px; background: var(--surface);
     border: var(--bw) solid var(--stroke); border-radius: 99px; overflow: hidden; }
   .imp-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
-  .imp-h { font-size: 1.15rem; font-weight: 500; margin: 0 0 2px; }
+  /* A deck name is capped at build time, but it is still somebody else's
+     text and it is still a heading: three lines of it, and a word with no
+     spaces in it breaks rather than pushing the sheet sideways. */
+  .imp-h { font-size: 1.15rem; font-weight: 500; margin: 0 0 2px;
+    overflow-wrap: anywhere; overflow: hidden; display: -webkit-box;
+    -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
   .imp-sub { color: var(--muted); font-size: .84rem; margin: 0 0 20px; }
   .imp-book { border: var(--bw) solid var(--stroke); border-radius: var(--r);
     background: var(--surface); box-shadow: var(--sh); padding: 4px 16px 14px; margin-bottom: 16px; }
@@ -88,7 +96,8 @@ export function doodle(name) {
  * Anything that is not a card count goes in an unnumbered line under it. */
 function landed(r) {
   const li = [];
-  li.push(`<li><b>${n(r.read.cards)}</b><span>cards in the package, on ${plural(r.read.notes, 'note')}</span></li>`);
+  li.push(`<li><b>${n(r.read.cards)}</b><span>${r.read.cards === 1 ? 'card' : 'cards'
+  } in the package, on ${plural(r.read.notes, 'note')}</span></li>`);
   li.push(`<li><b>${n(r.made.cards)}</b><span>kept</span></li>`);
   if (r.kinds.length > 1) {
     const say = r.kinds.slice(0, 5).map((k) => `${n(k.n)} ${k.name}`).join(', ');
@@ -121,6 +130,10 @@ function lost(r) {
     li.push(`<li class="said"><b></b><span>${plural(r.media.damaged.length, 'file')
     } Munin cannot show — damaged, or a kind of picture that can carry code<span class="imp-eg">${
       esc(r.media.damaged.slice(0, 3).join(', '))}</span></span></li>`);
+  }
+  if (r.video) {
+    li.push(`<li class="said"><b></b><span>${plural(r.video, 'card')} had a video on ${
+      r.video === 1 ? 'it' : 'them'}: Munin does not play video, so it stayed in the package</span></li>`);
   }
   if (r.unknownFields.length) {
     li.push(`<li><b></b><span>templates asked for fields that are not there: ${
@@ -155,6 +168,27 @@ export function book(r) {
       <h3>what landed</h3><ul>${landed(r)}</ul>
       ${lost(r) ? `<h3>what didn’t</h3><ul>${lost(r)}</ul>` : ''}
       <h3>what is different now</h3><ul>${changed(r)}</ul>
+    </div>`;
+}
+
+/* Nothing landed — and this used to be the one import that got no account at
+ * all, in favour of a fixed sentence saying every card came out empty. For a
+ * package with no cards in it that was simply untrue, and for one whose cards
+ * really did come out empty the receipt already knew so and did not say. Same
+ * reckoning as any other import, minus the two headings that would be
+ * describing a deck that does not exist. */
+export function nothingHtml(r) {
+  const why = r.read.cards
+    ? `${plural(r.read.cards, 'card')} in it, on ${plural(r.read.notes, 'note')} — and not one of them came out with anything on it.`
+    : r.read.notes
+      ? `it holds ${plural(r.read.notes, 'note')} and not one card. Anki makes the cards from a note type; if this is a shared deck, the note type that made them is not in the file.`
+      : 'there are no notes and no cards in it — the export came out empty.';
+  const li = lost(r);
+  return `<h2 class="imp-h">nothing to study in that package</h2>
+    <p class="imp-sub">${why}</p>
+    ${li ? `<div class="imp-book"><h3>what didn’t</h3><ul>${li}</ul></div>` : ''}
+    <div class="imp-acts">
+      <button type="button" class="go" data-again>try another file</button>
     </div>`;
 }
 

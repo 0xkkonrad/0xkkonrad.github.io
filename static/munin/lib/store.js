@@ -108,22 +108,27 @@ export async function remove(id) {
   // is asked for rather than spelled out — it used to be written by hand here,
   // in app.js and in the shell's orphan sweep, which is three places to change
   // and two to forget.
-  localStorage.removeItem(globalThis.MUNIN.stateKey(id));
+  let historyCleared = true;
+  try {
+    // Notify every open copy before removing the document. A tab still
+    // studying this deck must not recreate its now-orphaned state on pagehide.
+    if (globalThis.MUNIN.resetKey) {
+      localStorage.setItem(globalThis.MUNIN.resetKey(id),
+        Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+    }
+    localStorage.removeItem(globalThis.MUNIN.stateKey(id));
+  } catch (e) {
+    historyCleared = false;
+    console.warn('deck removed, but its orphaned review history could not be cleared', e);
+  }
+  return { historyCleared };
 }
 
-/** Object URLs for one deck's media, by the index the cards refer to. */
-export async function mediaUrls(id) {
+/** One media Blob, fetched only when a rendered card refers to it. */
+export async function mediaBlob(id, index) {
   const d = await db();
-  const tx = d.transaction(MEDIA);
-  const s = tx.objectStore(MEDIA);
-  const keys = await wrap(s.getAllKeys(IDBKeyRange.bound([id], [id, []])));
-  const vals = await wrap(s.getAll(IDBKeyRange.bound([id], [id, []])));
-  const out = new Map();
-  keys.forEach((k, i) => {
-    const v = vals[i];
-    if (v && v.blob) out.set(k[1], URL.createObjectURL(v.blob));
-  });
-  return out;
+  const value = await wrap(d.transaction(MEDIA).objectStore(MEDIA).get([id, index]));
+  return value?.blob || null;
 }
 
 const TYPES = {

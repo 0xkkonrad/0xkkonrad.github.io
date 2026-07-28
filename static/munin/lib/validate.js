@@ -83,7 +83,10 @@ export function validateDeck(deck) {
   for (const s of deck.sections) {
     if (!isStr(s.k) || !isNum(s.n)) continue;
     const real = perSection.get(s.k) || 0;
-    if (s.n !== real) fail(`section "${s.k}" says it has ${s.n} cards and has ${real}`);
+    // Zero agrees with zero, so an empty section passed this and was exactly
+    // the state described above. An empty section is not a section.
+    if (!real) fail(`section "${s.k}" has no cards in it`);
+    else if (s.n !== real) fail(`section "${s.k}" says it has ${s.n} cards and has ${real}`);
   }
 
   if (deck.groups !== undefined) {
