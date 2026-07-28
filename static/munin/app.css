@@ -1176,7 +1176,13 @@ mark {
  * these rules only dress the default raven. Nothing here is filled in by
  * JavaScript: the screen has to be painted before app.js exists, which is the
  * whole window it covers. */
-.boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); gap: 12px; }
+/* align-content, not just place-items: two children in a grid with no row
+ * template make two implicit rows, and rows stretch by default — which put the
+ * drawing a quarter down the screen, the line three quarters down, and left the
+ * gap below with nothing to sit between. The scene and its caption are one
+ * thing; they are centred as one. */
+.boot { position: fixed; inset: 0; display: grid; place-items: center;
+  align-content: center; color: var(--muted); gap: 12px; }
 .boot[hidden] { display: none; }
 .boot p { font-size: .88rem; text-transform: lowercase; }
 .boot-scene { display: grid; place-items: center; }
