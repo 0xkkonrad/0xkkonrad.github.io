@@ -15,7 +15,7 @@
  * BUILD is stamped by scripts/deploy-to-kkonrad.sh from the content actually
  * shipped: without that, a cache-first shell never updates.
  */
-const BUILD = { shell: '968c8222fa', courses: { 'day-skipper': '6b322ca06d', 'competent-crew': '593597f64b' } };
+const BUILD = { shell: 'd413c09cc4', courses: { 'day-skipper': '6b322ca06d', 'competent-crew': '593597f64b' } };
 const SHELL_V = 'munin-shell-' + BUILD.shell;
 const courseV = (id) => 'munin-course-' + id + '-' + (BUILD.courses[id] || 'dev');
 const SCOPE = new URL('./', self.registration.scope).pathname;
