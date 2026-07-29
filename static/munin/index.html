@@ -1,413 +1,64 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- One tag, set from JS: the app's own light/dark/auto toggle has to win over
-     the system preference here too, or the browser bar and the page disagree. -->
-<meta name="theme-color" id="theme-color" content="#f0eee7">
-<meta name="description" content="keep club — membership pays in memories. Pick a course, keep your progress on your device.">
-<title>keep club</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<!-- The home-screen label. Without it iOS uses <title>, which is too long and
-     gets elided to "RYA Day Ski…" under the icon. -->
-<meta name="apple-mobile-web-app-title" content="keep club">
-<!-- Deliberately `default`, not `black-translucent`. Since iOS 15 the standalone
-     status bar takes its colour from `theme-color` above, which this app rewrites
-     when you switch theme — so it already follows the paper into dark mode.
-     `black-translucent` would force white status text over light paper and hide
-     the clock in the app's own default theme. -->
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="preload" href="fonts/dm-mono-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/dm-mono-500.woff2" as="font" type="font/woff2" crossorigin>
-<!-- The figure labels are hand-lettered; the drawings are stroked, so a late
-     font swap would reflow every label inside a fixed viewBox. -->
-<link rel="preload" href="fonts/architects-daughter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="app.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,follow">
+  <meta name="theme-color" content="#f0eee7">
+  <meta name="description" content="keep club has moved to keepclub.app">
+  <title>keep club moved</title>
+  <style>
+    @font-face{font-family:DM Mono;src:url(fonts/dm-mono-400.woff2) format("woff2");font-display:swap}
+    @font-face{font-family:Architects Daughter;src:url(fonts/architects-daughter.woff2) format("woff2");font-display:swap}
+    :root{color-scheme:light;--paper:#f0eee7;--ink:#172522;--accent:#0e3f39;--line:#b9b7ad}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);
+      font:15px/1.55 "DM Mono",monospace;display:grid;place-items:center;padding:24px}
+    main{width:min(100%,520px);border:2px solid var(--ink);background:#fffdf7;
+      box-shadow:7px 7px 0 var(--ink);padding:clamp(24px,7vw,44px)}
+    .mark{display:flex;align-items:center;gap:14px;color:var(--accent);margin-bottom:26px}
+    svg{width:58px;height:58px;fill:none;stroke:currentColor;stroke-width:2;
+      stroke-linecap:round;stroke-linejoin:round}
+    h1{font:34px/1 "Architects Daughter",cursive;margin:0}
+    h2{font:22px/1.2 "Architects Daughter",cursive;margin:0 0 14px}
+    p{margin:0 0 18px}
+    .actions{display:grid;gap:12px;margin:26px 0 18px}
+    button,.link{appearance:none;border:2px solid var(--ink);background:var(--accent);
+      color:#fffdf7;padding:13px 16px;font:700 14px/1.2 "DM Mono",monospace;
+      text-align:center;text-decoration:none;cursor:pointer;box-shadow:3px 3px 0 var(--ink)}
+    button:disabled{opacity:.6;cursor:wait}
+    .link{background:transparent;color:var(--ink);box-shadow:none}
+    .status{min-height:48px;border-top:1px dashed var(--line);padding-top:15px;
+      font-size:13px;color:#344743}
+    small{display:block;color:#596a66}
+  </style>
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
-
-<div id="app" hidden>
-
-  <!-- ─────────────────────────── HOME ─────────────────────────── -->
-  <section class="screen" id="s-home">
-    <!-- The frieze fills in as the deck gets learned: one drawing per twelfth of
-         the cards you have started. Filled by renderFrieze() in app.js. -->
-    <div class="frieze" id="frieze" aria-hidden="true"></div>
-    <header class="top">
-      <div>
-        <h1 id="course-title">…</h1>
-        <p class="sub" id="home-sub">Spaced-repetition revision</p>
-      </div>
-      <button class="icon-btn" id="theme-btn" aria-label="Switch colour theme" title="Switch colour theme">
-        <!-- Filled by MuninTheme.apply(), which runs before the first paint:
-             the drawing depends on a setting only it has read. -->
-        <span aria-hidden="true" id="theme-glyph" data-theme-glyph></span>
-      </button>
-    </header>
-
-    <main id="main" class="body">
-      <div class="ask-exam" id="ask-exam" hidden>
-        <h2>When is your exam?</h2>
-        <!-- Written by app.js: what is true of a 537-card syllabus is not true
-             of an eleven-card deck someone just imported. -->
-        <p id="ask-why">Give the app a date and it works out how many new cards a
-           day you need, and stops scheduling anything for after you have sat it.</p>
-        <label class="sr" for="home-exam">Exam date</label>
-        <input type="date" id="home-exam">
-        <p class="ask-parsed" id="home-exam-parsed"></p>
-        <button class="link-btn" id="skip-exam">I have not booked one yet</button>
-      </div>
-
-      <p class="banner" id="exam-banner" hidden></p>
-
-      <div class="today" id="today-card">
-        <div class="today-counts" id="today-counts"></div>
-        <button class="primary big" id="study-all">Study</button>
-        <p class="today-note" id="today-note"></p>
-        <p class="today-note" id="today-done" hidden></p>
-      </div>
-
-      <details class="how" id="how">
-        <summary>How this works</summary>
-        <p>You are shown a question. Try to answer it in your head, then tap the
-           card to see whether you were right, and say how it went.</p>
-        <p><b>Again</b> means you did not know it. <b>Hard</b> means you got there,
-           slowly. <b>Good</b> means you knew it. <b>Easy</b> means it was obvious.
-           Be honest — the app uses your answer to decide when to show the card
-           next, so flattering yourself just means seeing it less.</p>
-        <p>Cards you find hard come back within minutes. Cards you know come back
-           in days, then weeks. That is the whole trick: you spend your time on
-           the material you have not learned yet.</p>
-        <p>Nothing is uploaded. Your progress is stored in this browser, so back
-           it up from the Progress tab before you change phone.</p>
-      </details>
-
-      <button class="trouble" id="leech-row" hidden>
-        <span></span>
-        <small>Answering them again is not working — go and read them</small>
-      </button>
-
-      <h2 class="h-sect">Sections</h2>
-      <!-- One list per theme, filled by renderHome(). Browse groups the same
-           twenty-four sections the same way; the app has one shape or none. -->
-      <div id="section-list"></div>
-
-      <!-- What this deck is and is not, in the words of whoever built it:
-           course.json's `notice`. An almanac and an up-to-date chart are Day
-           Skipper's caveat, not Munin's, and printing them under a deck of
-           German verbs someone imported would be nonsense. Munin's own line is
-           the default. Filled by renderNotice(); the markup carries the
-           default so the page says something sane before app.js runs. -->
-      <p class="fineprint" id="notice">
-        Revision material. Progress is stored on this device only.
-      </p>
-    </main>
-  </section>
-
-  <!-- ─────────────────────────── STUDY ─────────────────────────── -->
-  <section class="screen" id="s-study" hidden>
-    <header class="top study-top">
-      <button class="icon-btn" id="study-back" aria-label="Leave this session">←</button>
-      <div class="study-meta">
-        <div class="progress" role="progressbar" aria-label="Session progress"
-             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="session-bar-wrap">
-          <div class="progress-fill" id="session-bar"></div>
-        </div>
-        <p class="study-sub"><span class="study-sect" id="study-section"></span><span class="study-left" id="study-left"></span></p>
-      </div>
-    </header>
-
-    <main class="body card-body" id="card-scroll">
-      <div class="qa">
-        <p class="chip-row"><span class="chip" id="card-chip"></span><span class="chip warn" id="leech-chip" hidden>keeps slipping</span></p>
-        <div class="question" id="card-q"></div>
-        <div id="answer-wrap" aria-live="polite" hidden>
-          <hr class="rule">
-          <div class="answer" id="card-a" tabindex="-1"></div>
-          <!-- The labelled doodle for this card. Inline SVG stroked in
-               currentColor, so it follows the theme into dark mode and needs
-               no second asset. Built by src/figures.py. -->
-          <figure class="fig fig-doodle" id="card-figure" hidden>
-            <button class="plate" id="figure-plate" aria-label="Enlarge the drawing"></button>
-            <figcaption id="figure-cap"></figcaption>
-          </figure>
-          <figure class="fig" id="card-fig" hidden>
-            <button class="fig-btn" id="fig-btn">
-              <img id="card-img" alt="" decoding="async">
-            </button>
-            <figcaption id="fig-caption">Tap the diagram to enlarge</figcaption>
-          </figure>
-          <p class="fig-missing" id="fig-missing" hidden>
-            This card has a diagram that has not been saved on this device. Reconnect,
-            or use Progress → Offline → Save all diagrams offline.
-          </p>
-          <!-- Clips for this card. Filled by renderCardVideo(); the player
-               expands where the thumbnail sits, so the answer stays above it. -->
-          <div class="vids" id="card-video" hidden></div>
-        </div>
-      </div>
-    </main>
-
-    <div class="dock" id="dock">
-      <button class="primary big" id="reveal-btn">Show answer</button>
-      <!-- `away`, not `hidden`: the line keeps its place in the dock while the
-           question is up, so revealing the answer does not shrink the card. -->
-      <p class="grade-ask away" id="grade-ask">Did you get it right?</p>
-      <div class="grades" id="grade-row" hidden>
-        <button class="grade g1" data-g="1"><b>Again</b><small id="iv1"></small></button>
-        <button class="grade g2" data-g="2"><b>Hard</b><small id="iv2"></small></button>
-        <button class="grade g3" data-g="3"><b>Good</b><small id="iv3"></small></button>
-        <button class="grade g4" data-g="4"><b>Easy</b><small id="iv4"></small></button>
-      </div>
-      <div class="dock-foot">
-        <button class="link-btn" id="undo-btn" disabled>↶ Undo last answer</button>
-        <button class="link-btn" id="end-btn">End session</button>
-      </div>
-      <p class="keyhint">Space reveals · 1–4 grades · U undoes</p>
+  <main id="app">
+    <div class="mark">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M6.7 11.8C7.5 11.7 9.6 11.4 11.3 11.5C12.9 11.5 14.9 12 16.5 12.2C18.2 12.4 19.9 12.6 21.2 12.7L23.8 13L24 14C24.2 14.8 24.7 16.6 24.9 17.9C25.1 19.2 25.4 20.5 25.3 21.8C25.2 23.1 24.7 24.9 24.5 25.9L24.2 27.8L22.6 27.7C21.6 27.7 19.9 27.4 18.4 27.4C16.8 27.4 15 27.8 13.3 28C11.7 28.1 9.7 28.2 8.7 28.2L7.7 28.2L7.6 24.7C7.6 23.3 7.7 21.1 7.7 19.6C7.7 18.1 7.7 16.8 7.5 15.5C7.4 14.2 6.9 12.4 6.7 11.8ZM7 11.6C6.9 11.4 6.7 11 6.7 10.8C6.6 10.5 6.6 10.2 6.7 9.9C6.7 9.7 6.8 9.4 6.8 9.1C6.9 8.7 6.9 8.2 6.9 8L6.5 7.9L7.9 8C8.2 8.1 8.4 8.3 8.7 8.4L9.8 8.4C9.8 8.5 9.5 8.8 9.5 9.1C9.5 9.3 9.7 9.7 9.8 10C9.9 10.3 10.1 11.3 10.1 11.6M13.5 12.1V11C13.5 10.6 13.8 10 13.8 9.8C13.8 9.5 13.5 8.9 13.4 8.8L15.9 8.4C16.2 8.4 16.2 8.6 16.5 8.7L17.5 8.9C17.6 9.2 17.8 10.6 17.8 11C17.8 11.4 17.5 12.1 17.4 12.2M20.6 12.8C20.7 12.6 21.1 11.3 21 10.9C21 10.7 20.8 10.1 20.8 9.5L21 9.3L21.7 9.2C21.9 9.1 22 8.9 22.2 8.8L23.5 9.1C23.5 9.5 23.4 9.8 23.4 10.1C23.4 10.4 23.6 12.1 23.6 12.4M13.5 28.2C13.4 27.9 13.3 25.3 13.1 23.7C13.2 23.1 13.5 22 13.5 21.4C13.6 20.8 13.6 19.6 14.1 19.2C14.5 19 15.1 19 15.7 19C16.2 19.1 17 19.1 17.5 19.3C18 19.6 18.4 20 18.7 20.5C19 20.9 19.8 25.6 20 26.7C20.1 27.2 20 27.7 20.1 27.9"/>
+      </svg>
+      <h1>keep club</h1>
     </div>
-  </section>
-
-  <!-- ─────────────────────────── DONE ─────────────────────────── -->
-  <section class="screen" id="s-done" hidden>
-    <main class="body centred">
-      <div class="done-card">
-        <p class="done-tick" id="done-tick" aria-hidden="true"></p>
-        <h2 id="done-title">Session finished</h2>
-        <p class="done-line" id="done-line"></p>
-        <div class="done-stats" id="done-stats"></div>
-
-        <!-- The reel: clips for the cards you graded Again or Hard. -->
-        <div class="reel" id="done-reel" hidden>
-          <p class="reel-h" id="reel-h"></p>
-          <div class="reel-strip" id="reel-strip"></div>
-        </div>
-        <button class="primary big" id="done-home">Back to sections</button>
-        <button class="ghost" id="done-more" hidden>Keep going</button>
-      </div>
-    </main>
-  </section>
-
-  <!-- ─────────────────────────── BROWSE ─────────────────────────── -->
-  <section class="screen" id="s-browse" hidden>
-    <header class="top">
-      <div>
-        <h1 tabindex="-1">Browse</h1>
-        <p class="sub">Read any card. Nothing here is graded.</p>
-      </div>
-    </header>
-    <div class="searchbar">
-      <label class="sr" for="search">Search cards</label>
-      <input id="search" type="search" placeholder="Search the deck…" autocomplete="off" enterkeyhint="search">
-      <label class="sr" for="sect-filter">Filter by section</label>
-      <select id="sect-filter"></select>
-      <p class="result-count" id="browse-count"></p>
-      <!-- The spoken half, separate so it can wait for you to stop typing: a
-           live region on the visible count read out a sentence per keystroke. -->
-      <p class="sr" id="browse-say" role="status" aria-live="polite"></p>
-      <div class="browse-acts">
-        <button class="link-btn" id="browse-back" hidden>← All sections</button>
-        <button class="link-btn" id="browse-open" hidden>Open every answer</button>
-        <button class="link-btn" id="browse-study" hidden></button>
-        <button class="link-btn" id="browse-wide" hidden></button>
-        <button class="link-btn" id="browse-clear" hidden>Clear</button>
-      </div>
+    <h2>we moved</h2>
+    <p>keep club now lives only at <b>keepclub.app</b>. This old address no
+      longer serves a second copy of the app.</p>
+    <p>Your progress at this address is still in this browser. Move it before
+      leaving and keep club will merge the review history already at the new
+      address. Imported decks and their media move too.</p>
+    <div class="actions">
+      <button id="move" type="button">Move my progress and decks</button>
+      <a class="link" href="https://keepclub.app/">Open keepclub.app without moving</a>
     </div>
-    <main class="body">
-      <!-- Shown instead of the list when nothing is searched or filtered: 537
-           questions in one column is not a thing anyone can browse. -->
-      <div class="browse-index" id="browse-index" hidden></div>
-      <ul class="browse-list" id="browse-list"></ul>
-      <button class="ghost wide" id="browse-more" hidden>Show more</button>
-    </main>
-  </section>
-
-  <!-- ─────────────────────────── STATS ─────────────────────────── -->
-  <section class="screen" id="s-stats" hidden>
-    <header class="top">
-      <div>
-        <h1>Progress</h1>
-        <p class="sub" id="stats-sub"></p>
-      </div>
-    </header>
-    <main class="body">
-      <div class="tiles" id="stat-tiles"></div>
-
-      <h2 class="h-sect">Cards coming back</h2>
-      <div class="forecast" id="forecast" role="img" aria-label="Cards due each of the next seven days"></div>
-
-      <h2 class="h-sect">By section</h2>
-      <p class="key">
-        <span><i class="m-mature"></i> solid</span>
-        <span><i class="m-young"></i> seen</span>
-        <span><i class="m-learn"></i> learning</span>
-      </p>
-      <div id="mastery"></div>
-
-      <!-- Munin calls this the hoard — a raven's. A course may call it
-           something in its own world (Day Skipper's is a ship's log) through
-           course.json's `hoard.title`, and rename and redraw the fourteen
-           entries under it; the rules that unlock them are Munin's. -->
-      <h2 class="h-sect" id="hoard-title">The hoard</h2>
-      <p class="ach-count" id="ach-count"></p>
-      <ul class="ach" id="ach-list"></ul>
-
-      <h2 class="h-sect">Settings</h2>
-      <div class="settings">
-        <label class="setting">
-          <span>Exam date <small id="exam-hint"></small></span>
-          <input type="date" id="set-exam">
-        </label>
-        <label class="setting">
-          <span>New cards a day <small id="new-hint"></small></span>
-          <input type="number" id="set-new" min="0" max="200" step="5" inputmode="numeric">
-        </label>
-        <label class="setting">
-          <span>Most cards to repeat in one day
-            <small>Anything over this waits until tomorrow.</small></span>
-          <input type="number" id="set-max" min="10" max="999" step="10" inputmode="numeric">
-        </label>
-        <label class="setting row">
-          <input type="checkbox" id="set-shuffle">
-          <span>Mix sections together <small>Stops you recognising an answer from the cards around it</small></span>
-        </label>
-      </div>
-
-      <!-- Installing sits with the other things you set up, not on the study
-           screen: it is a control you come looking for, not a nudge. Hidden in
-           the markup and only ever revealed by app.js — whether this is possible
-           at all is something only the browser knows, and an app already
-           installed has nothing to offer. The button is absent on iOS, which has
-           no API for this and gets the two-tap instruction instead. -->
-      <div class="install-sect" id="install-card" hidden>
-        <h2 class="h-sect">Install</h2>
-        <p class="fineprint" id="install-note"></p>
-        <button class="ghost wide" id="install-btn" hidden>Install</button>
-      </div>
-
-      <!-- Hidden until app.js has counted this deck's diagrams: how many there
-           are and whether there are any at all is a fact about the course, and
-           "the 24 diagrams are about 2 MB" was printed over a three-picture
-           deck and over imported decks with none, above a button that then
-           downloaded nothing. -->
-      <div class="offline-sect" id="offline-card" hidden>
-        <h2 class="h-sect">Offline</h2>
-        <p class="fineprint" id="offline-note"></p>
-        <button class="ghost wide" id="prefetch-btn">Save all diagrams offline</button>
-      </div>
-
-      <h2 class="h-sect">Sync</h2>
-      <p class="fineprint">
-        Study on your phone and your laptop and keep one set of progress. Turn
-        it on here, then type the key it gives you into the other device. There
-        is no account and no email: the key is the only way in, so keep it, and
-        anyone you give it to shares your deck.
-      </p>
-      <p class="backup-state" id="sync-state"></p>
-      <p class="sync-key" id="sync-key" hidden></p>
-      <div class="btn-row" id="sync-actions"></div>
-      <input type="text" id="sync-join" hidden autocomplete="off"
-             autocapitalize="characters" spellcheck="false"
-             aria-label="Sync key from your other device">
-
-      <h2 class="h-sect">Backup</h2>
-      <p class="fineprint">
-        A backup is a file you keep, and it works whether or not sync is on.
-        Export writes a small JSON file you can email to yourself; restore reads
-        it back on any device.
-      </p>
-      <p class="backup-state" id="backup-state"></p>
-      <div class="btn-row">
-        <button class="ghost" id="export-btn">Export a backup</button>
-        <button class="ghost" id="import-btn">Restore from a file</button>
-        <input type="file" id="import-file" accept="application/json,.json" hidden>
-      </div>
-      <button class="danger" id="reset-btn">Erase all progress</button>
-
-      <h2 class="h-sect">About</h2>
-      <div class="about">
-        <p id="about-copy">keep club is open-source spaced repetition, made by
-          <a id="about-author" href="https://kkonrad.com/" target="_blank"
-             rel="author noopener noreferrer">kkonrad</a>.
-        </p>
-        <p><a id="about-source" href="https://github.com/0xkkonrad/munin"
-              target="_blank" rel="noopener noreferrer">source code on github</a></p>
-        <p class="about-build" id="build-line"></p>
-      </div>
-    </main>
-  </section>
-
-  <!-- ─────────────────────────── NAV ─────────────────────────── -->
-  <nav class="nav" id="nav" aria-label="Main">
-    <button data-go="home" class="on"><span aria-hidden="true">◈</span>Study</button>
-    <button data-go="browse"><span aria-hidden="true">≡</span>Browse</button>
-    <button data-go="stats"><span aria-hidden="true">▤</span>Progress</button>
-  </nav>
-</div>
-
-<!-- ─────────────────────────── LIGHTBOX ─────────────────────────── -->
-<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Diagram">
-  <div class="lb-bar">
-    <span class="lb-title" id="lb-title"></span>
-    <button class="icon-btn" id="lb-fit" aria-label="Fit the whole diagram on screen">⤢</button>
-    <button class="icon-btn" id="lb-close" aria-label="Close diagram">✕</button>
-  </div>
-  <div class="lb-stage" id="lb-stage">
-    <img id="lb-img" alt="">
-    <!-- Figures enlarge as vector rather than as a bitmap: the same markup the
-         card drew, scaled by the same pan-and-zoom transform. -->
-    <div class="lb-fig" id="lb-fig" hidden></div>
-  </div>
-  <p class="lb-hint" id="lb-hint">Pinch or double-tap to zoom · drag to pan</p>
-</div>
-
-<!-- The loading screen. keep club's tower is the default scene and it is markup,
-     not something JavaScript fills in: this screen exists to cover the window
-     before app.js has run, so anything drawn from app.js is drawn exactly too
-     late. A course brings its own scene as courses/<id>/boot.html + boot.css,
-     which munin.js swaps in — and replays from localStorage on every later
-     visit, before the first paint. pathLength="1" lets one CSS rule draw any
-     path on, whatever its real geometry. -->
-<div class="boot" id="boot">
-  <div class="boot-scene" id="boot-scene" data-from="munin" aria-hidden="true">
-    <svg class="boot-raven" viewBox="0 0 32 32" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path pathLength="1" d="M6.7 11.8C7.5 11.7 9.6 11.4 11.3 11.5C12.9 11.5 14.9 12 16.5 12.2C18.2 12.4 19.9 12.6 21.2 12.7L23.8 13L24 14C24.2 14.8 24.7 16.6 24.9 17.9C25.1 19.2 25.4 20.5 25.3 21.8C25.2 23.1 24.7 24.9 24.5 25.9L24.2 27.8L22.6 27.7C21.6 27.7 19.9 27.4 18.4 27.4C16.8 27.4 15 27.8 13.3 28C11.7 28.1 9.7 28.2 8.7 28.2L7.7 28.2L7.6 24.7C7.6 23.3 7.7 21.1 7.7 19.6C7.7 18.1 7.7 16.8 7.5 15.5C7.4 14.2 6.9 12.4 6.7 11.8C6.6 11.2 6 11.8 6.7 11.8ZM7 11.6C6.9 11.4 6.7 11 6.7 10.8C6.6 10.5 6.6 10.2 6.7 9.9C6.7 9.7 6.8 9.4 6.8 9.1C6.9 8.7 6.9 8.2 6.9 8L6.5 7.9L7 7.9C7.2 8 7.6 8 7.9 8C8.2 8.1 8.4 8.3 8.7 8.4L9.6 8.4L9.8 8.4C9.8 8.5 9.5 8.8 9.5 9.1C9.5 9.3 9.7 9.7 9.8 10C9.9 10.3 10 10.6 10 10.9C10.1 11.2 10.1 11.5 10.1 11.6M13.5 12.1C13.5 11.9 13.5 11.3 13.5 11C13.5 10.6 13.5 10.5 13.6 10.3C13.6 10.1 13.8 10 13.8 9.8C13.8 9.5 13.6 9.1 13.5 8.9L13.4 8.8L14.4 8.7C14.8 8.7 15.6 8.4 15.9 8.4C16.2 8.4 16.2 8.6 16.5 8.7L17.3 8.8L17.5 8.9C17.6 9.2 17.7 9.9 17.8 10.3C17.8 10.6 17.8 10.7 17.8 11C17.8 11.2 17.8 11.4 17.8 11.6C17.7 11.8 17.5 12.1 17.4 12.2M20.6 12.8C20.7 12.6 21 12 21 11.7C21.1 11.3 21 11.1 21 10.9C21 10.7 20.9 10.6 20.8 10.4C20.8 10.1 20.8 9.7 20.8 9.5L21 9.3L21.7 9.2C21.9 9.1 22 8.9 22.2 8.8C22.4 8.8 22.6 9 22.8 9L23.5 9.1L23.5 9.3C23.5 9.5 23.4 9.8 23.4 10.1C23.4 10.4 23.5 10.7 23.5 11C23.5 11.2 23.6 11.5 23.6 11.8C23.6 12 23.6 12.3 23.6 12.4M13.5 28.2C13.4 27.9 13.4 26.9 13.4 26.3C13.4 25.8 13.3 25.3 13.3 24.9C13.2 24.5 13.1 24.2 13.1 23.7C13.2 23.1 13.5 22 13.5 21.4C13.6 20.8 13.4 20.4 13.5 20C13.6 19.6 13.8 19.3 14.1 19.2C14.5 19 15.1 19 15.7 19C16.2 19.1 17 19.1 17.5 19.3C18 19.6 18.4 20 18.7 20.5C19 20.9 19.1 21.6 19.2 22C19.3 22.4 19.4 22.6 19.5 22.9C19.6 23.2 19.6 23.6 19.7 24C19.7 24.4 19.8 24.7 19.8 25.2C19.9 25.6 20 26.2 20 26.7C20.1 27.2 20 27.7 20.1 27.9"/>
-    </svg>
-  </div>
-  <p id="boot-line">Loading…</p>
-  <!-- The way off this screen. It is opaque, it covers the window and it ranks
-       above the `courses` pill, so a deck that will not load or will not
-       validate used to be the end of the app — the stored course still pointed
-       at the broken one, and reloading landed back here. Revealed by app.js on
-       those two paths only; there is nothing to escape from while it is
-       loading. -->
-  <button class="ghost" id="boot-back" hidden>Back to the courses</button>
-</div>
-<div class="toast away" id="toast" role="status" aria-live="polite"></div>
-
-<!-- Achievement unlocks. Own element rather than the toast: an unlock has a
-     drawing and two lines, and it must not eat a scheduler message. -->
-<div class="unlock away" id="unlock" role="status" aria-live="polite">
-  <span id="unlock-art" aria-hidden="true"></span>
-  <span class="u-txt">
-    <!-- The word is written by app.js and taken out again when the card
-         leaves. As markup it sat in a live region for ever, so a screen reader
-         read the picker out as "skip to content, unlocked, munin". -->
-    <span class="u-k" id="unlock-key"></span>
-    <b id="unlock-title"></b>
-    <small id="unlock-sub"></small>
-  </span>
-</div>
-
-<!-- Before app.js: the sync module only defines things, and app.js wires it up
-     on boot, so it has to already be there. -->
-<script src="doodles-munin.js"></script>
-<script src="munin.js"></script>
+    <p class="status" id="status" role="status" aria-live="polite">
+      Nothing is deleted here. The original stays as a recovery copy after the move.
+    </p>
+    <small>If this browser has no old progress, just open the new address.</small>
+  </main>
+  <!-- The legacy worker recognises an app page by #app plus this exact script
+       filename. Keeping both for one retirement generation lets cached
+       installs receive the move page instead of being trapped offline. -->
+  <script src="munin.js"></script>
 </body>
 </html>
