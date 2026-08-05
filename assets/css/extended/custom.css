@@ -26,6 +26,12 @@ body {
     font-family: "Bitter", Georgia, serif;
 }
 
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
 .substack-feed {
     border: 1px solid var(--primary);
     padding: 1.5rem;
@@ -68,6 +74,12 @@ body {
 
 .home-info-intro {
     flex: 1;
+}
+
+.home-info .entry-header {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
 }
 
 .home-info-subtitle {
@@ -117,10 +129,34 @@ body {
     font-size: 1.45rem;
 }
 
+.current-work-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.4rem;
+    row-gap: 0.25rem;
+}
+
 .current-work-copy h3 a,
 .current-work-link a {
     text-decoration: underline;
     text-underline-offset: 0.3rem;
+}
+
+.current-work-copy h3 .current-work-logo-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.current-work-logo {
+    display: block;
+    width: 96px;
+    height: auto;
+}
+
+[data-theme="dark"] .current-work-logo {
+    filter: invert(1);
 }
 
 .current-work-stats {

@@ -21,7 +21,11 @@
             <h2 class="home-section-title" id="current-work-title">What I’m building now</h2>
             <div class="current-work-card">
                 <div class="current-work-copy">
-                    <h3>{{ .role }} at <a href="{{ .url }}" target="_blank" rel="noopener">{{ .title }}</a> — {{ .description }}</h3>
+                    <h3 class="current-work-heading">
+                        <span>{{ .role }} at</span>
+                        <a class="current-work-logo-link" href="{{ .url }}" target="_blank" rel="noopener"><img class="current-work-logo" src="{{ .logo | relURL }}" alt="{{ .title }}" width="{{ .logo_width }}" height="{{ .logo_height }}" /></a>
+                        <span>— {{ .description }}</span>
+                    </h3>
                     <ul class="current-work-stats">
                         {{- range .stats }}
                         <li>{{ . }}</li>
