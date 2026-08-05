@@ -53,8 +53,8 @@ enableEmoji = true
   # goatcounter = "kkonrad"
 
   [params.homeInfoParams]
-    Title = "I’m Konrad and I think too much about payments."
-    Subtitle = "At [Peanut](https://peanut.me), we’re making global payments simpler. I write about the technology, trade-offs, and occasional absurdities behind them."
+    Title = "Hey! I’m Konrad and I think too much about payments."
+    Subtitle = "I write about technology, trade-offs, and occasional absurdities behind them."
     Content = """
 Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [Twitter](https://twitter.com/0xkkonrad), or [Substack](https://kkonrad.substack.com/).
 """

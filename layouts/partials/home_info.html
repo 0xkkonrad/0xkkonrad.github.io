@@ -21,15 +21,14 @@
             <h2 class="home-section-title" id="current-work-title">What I’m building now</h2>
             <div class="current-work-card">
                 <div class="current-work-copy">
-                    <h3><a href="{{ .url }}" target="_blank" rel="noopener">{{ .title }}</a> <span class="current-work-role">— {{ .role }}</span></h3>
-                    <p>{{ .description }}</p>
-                    <p class="current-work-stats">{{ .stats }}</p>
+                    <h3>{{ .role }} at <a href="{{ .url }}" target="_blank" rel="noopener">{{ .title }}</a> — {{ .description }}</h3>
+                    <ul class="current-work-stats">
+                        {{- range .stats }}
+                        <li>{{ . }}</li>
+                        {{- end }}
+                    </ul>
                     <p class="current-work-link"><a href="{{ .url }}" target="_blank" rel="noopener">Learn more →</a></p>
                 </div>
-                <figure class="current-work-visual">
-                    <img src="{{ .image | relURL }}" alt="{{ .image_alt }}" width="{{ .image_width }}" height="{{ .image_height }}" loading="lazy" />
-                    <figcaption>{{ .image_caption }}</figcaption>
-                </figure>
             </div>
         </section>
         {{- end }}
