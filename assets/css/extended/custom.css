@@ -133,6 +133,15 @@ body {
 
 .current-work-role {
     color: var(--secondary);
+    font-size: 0.72em;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.current-work-stats {
+    color: var(--secondary);
+    font-size: 0.88rem;
+    font-weight: 600;
 }
 
 .current-work-link {
