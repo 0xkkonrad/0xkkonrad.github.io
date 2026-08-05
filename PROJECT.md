@@ -28,7 +28,7 @@ Deploys: push to `master`, manual dispatch, or the **daily 05:23 UTC cron** (kee
 
 ## Future / open decisions
 
-- [ ] Whether to mirror Substack essays in-repo for SEO (current: external stubs + build-time feed; single source of truth stays Substack)
+- [ ] Make kkonrad.com the publication of record and migrate email delivery away from Substack. See [the migration and discoverability roadmap](docs/substack-migration-roadmap.md).
 - [ ] Whether to keep the `0xkkonrad.github.io` repo name or rename (cosmetic)
 - [ ] Three.js background animation sitewide — scoped, light-touch ambient effect behind content (not a full WebGL takeover)
 

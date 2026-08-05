@@ -21,7 +21,7 @@ enableEmoji = true
 
 [params]
   env = "production"
-  description = "Konrad Urban — co-founder of Peanut. Writing on onchain payments, fintech, and other things."
+  description = "Konrad Urban thinks too much about payments. Cofounder of Peanut; writing about payment technology, trade-offs, and occasional absurdities."
   author = "Konrad Urban"
   defaultTheme = "auto"
   disableThemeToggle = false
@@ -53,17 +53,10 @@ enableEmoji = true
   # goatcounter = "kkonrad"
 
   [params.homeInfoParams]
-    Title = "Hey there!"
-    Subtitle = "I'm Konrad, cofounder of [Peanut](https://peanut.me) — a global cash app."
+    Title = "I’m Konrad and I think too much about payments."
+    Subtitle = "At [Peanut](https://peanut.me), we’re making global payments simpler. I write about the technology, trade-offs, and occasional absurdities behind them."
     Content = """
-Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [twitter](https://twitter.com/0xkkonrad), [Substack](https://kkonrad.substack.com/).
-
-I also (co-)founded:
-- 2020 — [Let's Phi](https://letsphi.com/) — a community of academic philosophers with non-academic careers (1.8k members)
-- 2020 — [Knit](https://web.archive.org/web/20240809081019/https://www.knitvideo.com/) — a failed virtual events B2B SaaS (10k+ users, with [Orest](https://tarasiuk.me/about-orest))
-- 2016 — [Open Blues](https://www.openblues.pl/) — a blues dance festival (with Isabella Larsen)
-- 2016 — [Radowid](https://web.archive.org/web/20250805082053/http://www.radowid.com/) — a failed luxury silk brand
-
+Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [Twitter](https://twitter.com/0xkkonrad), or [Substack](https://kkonrad.substack.com/).
 """
 
   [params.assets]
@@ -87,9 +80,9 @@ I also (co-)founded:
   weight = 20
 
 [[menu.main]]
-  identifier = "misc"
-  name = "misc"
-  url = "/misc/"
+  identifier = "beyond-payments"
+  name = "beyond"
+  url = "/beyond-payments/"
   weight = 30
 
 [[menu.main]]

@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Talks mockup — Konrad Urban</title>
+  <style>
+    @font-face {
+      font-family: "Bitter";
+      src: url("../static/fonts/bitter-var-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+    }
+
+    :root {
+      --bg: #f5f5f5;
+      --surface: #fff;
+      --ink: #1e1e1e;
+      --muted: #6c6c6c;
+      --line: #d6d6d6;
+      --accent: #ffe100;
+      --accent-ink: #181818;
+      color-scheme: light;
+    }
+
+    [data-theme="dark"] {
+      --bg: #061c00;
+      --surface: #0c2e07;
+      --ink: #dadadb;
+      --muted: #9b9c9d;
+      --line: #414244;
+      --accent: #ffe100;
+      --accent-ink: #181818;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Bitter", Georgia, serif;
+      font-size: 17px;
+      line-height: 1.55;
+    }
+    a { color: inherit; text-underline-offset: .28rem; }
+    img { display: block; max-width: 100%; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .site-header {
+      max-width: 1080px;
+      min-height: 64px;
+      margin: 0 auto;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+    }
+    .brand { font-size: 23px; font-weight: 750; text-decoration: none; }
+    .header-end, .nav { display: flex; align-items: center; gap: 22px; }
+    .nav { list-style: none; margin: 0; padding: 0; }
+    .nav a { text-decoration: none; }
+    .nav .active { border-bottom: 2px solid currentColor; }
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 0;
+      color: var(--ink);
+      background: transparent;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    main { max-width: 960px; margin: 0 auto; padding: 48px 28px 96px; }
+    .mockup-label {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 4px 9px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .intro {
+      max-width: 720px;
+      margin-bottom: 64px;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 12px; font-size: clamp(2.8rem, 7vw, 5.2rem); line-height: .98; }
+    h2 { margin-bottom: 22px; font-size: clamp(1.8rem, 4vw, 2.45rem); line-height: 1.12; }
+    h3 { line-height: 1.25; }
+    .intro-copy { max-width: 640px; margin-bottom: 24px; font-size: 1.16rem; color: var(--muted); }
+    .intro-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      display: inline-block;
+      padding: 9px 14px;
+      border: 1px solid var(--ink);
+      font-size: .9rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .button.primary { color: var(--bg); background: var(--ink); }
+
+    section { margin-top: 72px; }
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+    .section-heading h2 { margin-bottom: 14px; }
+    .section-heading p { margin: 0 0 16px; color: var(--muted); font-size: .88rem; }
+
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    .talk-card {
+      border: 1px solid var(--ink);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .talk-card.lead {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+    }
+    .talk-media {
+      display: block;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: #171717;
+      border-bottom: 1px solid var(--ink);
+    }
+    .lead .talk-media { height: 100%; border: 0; border-right: 1px solid var(--ink); }
+    .talk-media img { width: 100%; height: 100%; object-fit: cover; }
+    .talk-body { padding: 22px; }
+    .talk-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 13px;
+      color: var(--muted);
+      font-size: .76rem;
+    }
+    .talk-meta span:not(:last-child)::after { content: " ·"; }
+    .talk-body h3 { margin-bottom: 10px; font-size: 1.35rem; }
+    .talk-body > p { color: var(--muted); font-size: .92rem; }
+    .talk-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; font-size: .88rem; font-weight: 750; }
+
+    .year-block { display: grid; grid-template-columns: 92px minmax(0, 1fr); border-top: 1px solid var(--line); }
+    .year-label { padding: 18px 12px 18px 0; font-weight: 800; }
+    .talk-list { list-style: none; margin: 0; padding: 0; }
+    .talk-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      padding: 17px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .talk-row-title { display: block; margin-bottom: 3px; font-weight: 750; }
+    .talk-row-meta { color: var(--muted); font-size: .82rem; }
+    .row-links { display: flex; align-items: center; gap: 12px; font-size: .8rem; white-space: nowrap; }
+    .small-label {
+      display: inline-block;
+      padding: 2px 6px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      font-size: .68rem;
+      font-weight: 850;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .podcast-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .podcast-card { border-top: 1px solid var(--ink); padding-top: 12px; }
+    .podcast-art { width: 100%; aspect-ratio: 1; margin-bottom: 13px; object-fit: cover; background: var(--surface); }
+    .podcast-card h3 { margin-bottom: 7px; font-size: 1rem; }
+    .podcast-card p { color: var(--muted); font-size: .8rem; }
+
+    .notes-needed {
+      padding: 22px;
+      border: 1px solid var(--ink);
+      background: var(--surface);
+    }
+    .notes-needed summary { cursor: pointer; font-weight: 800; }
+    .notes-needed ul { margin-bottom: 0; }
+    .notes-needed li { margin-top: 8px; }
+    .mockup-footer { margin-top: 76px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+
+    @media (max-width: 760px) {
+      .site-header { align-items: flex-start; flex-direction: column; padding-top: 14px; padding-bottom: 14px; gap: 8px; }
+      .header-end { width: 100%; justify-content: space-between; }
+      main { padding-top: 34px; }
+      .talk-card.lead { display: block; }
+      .lead .talk-media { height: auto; border-right: 0; border-bottom: 1px solid var(--ink); }
+      .podcast-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+      body { font-size: 16px; }
+      .nav { gap: 14px; font-size: .9rem; }
+      main { padding-left: 16px; padding-right: 16px; }
+      .intro { margin-bottom: 48px; }
+      section { margin-top: 56px; }
+      .featured-grid, .podcast-grid { grid-template-columns: 1fr; }
+      .year-block { grid-template-columns: 1fr; }
+      .year-label { padding-bottom: 8px; }
+      .talk-row { grid-template-columns: 1fr; gap: 8px; }
+      .row-links { white-space: normal; }
+      .section-heading { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#">Konrad Urban</a>
+    <div class="header-end">
+      <nav aria-label="Main navigation">
+        <ul class="nav">
+          <li><a href="#">writing</a></li>
+          <li><a class="active" href="#" aria-current="page">talks</a></li>
+          <li><a href="#">beyond</a></li>
+          <li><a href="#">search</a></li>
+        </ul>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle color theme">◐</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="intro">
+      <span class="mockup-label">Mockup · not live</span>
+      <h1>Talks</h1>
+      <p class="intro-copy">Conference talks and conversations about payments, crypto, product design, and the occasional political or philosophical detour.</p>
+      <div class="intro-actions">
+        <a class="button primary" href="https://www.linkedin.com/in/konrad-urban/">Invite me to speak →</a>
+        <a class="button" href="#archive">Browse the archive ↓</a>
+      </div>
+    </div>
+
+    <section aria-labelledby="featured-title">
+      <div class="section-heading">
+        <h2 id="featured-title">Featured talks</h2>
+        <p>Three useful places to start</p>
+      </div>
+
+      <div class="featured-grid">
+        <article class="talk-card lead">
+          <a class="talk-media" href="https://www.youtube.com/watch?v=Kw3rxKFUEKc" aria-label="Watch Wen p2p Electronic Cash System?">
+            <img src="https://i.ytimg.com/vi/Kw3rxKFUEKc/hqdefault.jpg" alt="Konrad Urban presenting Wen p2p Electronic Cash System? at Devcon 7">
+          </a>
+          <div class="talk-body">
+            <div class="talk-meta"><span>Devcon 7 SEA</span><span>2024</span><span>25 min</span></div>
+            <h3><a href="https://www.youtube.com/watch?v=Kw3rxKFUEKc">Wen p2p Electronic Cash System?</a></h3>
+            <p>Bitcoin found product-market fit as digital gold, not cash. This looks at what failed before, and why stablecoins, cheap L2s, and account abstraction changed the answer.</p>
+            <div class="talk-links">
+              <a href="https://www.youtube.com/watch?v=Kw3rxKFUEKc">Watch ↗</a>
+              <a href="https://drive.google.com/file/d/1dMvlJ2kGv4x2idmRzv87LISnMMOksadw/view">Slides ↗</a>
+              <a href="https://app.devcon.org/schedule/ZFX3ZF">Session ↗</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="talk-card">
+          <a class="talk-media" href="https://www.youtube.com/watch?v=J_VTceUdfgs" aria-label="Watch Chain abstraction? But I want to know where my tokens are">
+            <img src="https://i.ytimg.com/vi/J_VTceUdfgs/hqdefault.jpg" alt="Konrad Urban presenting a chain abstraction lightning talk at Devcon 7">
+          </a>
+          <div class="talk-body">
+            <div class="talk-meta"><span>Devcon 7 SEA</span><span>2024</span><span>9 min</span></div>
+            <h3><a href="https://www.youtube.com/watch?v=J_VTceUdfgs">Chain abstraction? But I want to know where my tokens are</a></h3>
+            <p>Wallets should hide multichain friction without hiding the very real security differences between assets and chains.</p>
+            <div class="talk-links">
+              <a href="https://www.youtube.com/watch?v=J_VTceUdfgs">Watch ↗</a>
+              <a href="https://drive.google.com/file/d/1_86XnoNJvrgp0_4z1JXExVEwqPfRfsri/view">Slides ↗</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="talk-card">
+          <a class="talk-media" href="https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8" aria-label="Watch When Help Hurts">
+            <img src="https://cfp.protocol.berlin/protocol-berg-v2/talk/BMFNEV/og-image" alt="When Help Hurts session artwork from Protocol Berg">
+          </a>
+          <div class="talk-body">
+            <div class="talk-meta"><span>Protocol Berg</span><span>2025</span><span>20 min</span></div>
+            <h3><a href="https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8">When Help Hurts</a></h3>
+            <p>A friendly government can speed up crypto adoption while quietly making it more surveilled, centralized, and easy for incumbents to capture.</p>
+            <div class="talk-links">
+              <a href="https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8">Watch ↗</a>
+              <a href="https://cfp.protocol.berlin/protocol-berg-v2/talk/BMFNEV/">Abstract ↗</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="archive" aria-labelledby="archive-title">
+      <div class="section-heading">
+        <h2 id="archive-title">Talk archive</h2>
+        <p>Newest first · corrected titles</p>
+      </div>
+
+      <div class="year-block">
+        <div class="year-label">2026</div>
+        <ul class="talk-list">
+          <li class="talk-row">
+            <div><span class="talk-row-title">P2P Electronic Cash or Just New Middlemen?</span><div class="talk-row-meta">ETHDenver · Future of Finance · 15 min</div></div>
+            <div class="row-links"><span class="small-label">Notes needed</span><a href="https://ethdenver.com/speakers/konrad-urban/">Event ↗</a></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="year-block">
+        <div class="year-label">2025</div>
+        <ul class="talk-list">
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=OkKtOzZkR-o">Peanut Pitch</a><div class="talk-row-meta">ETH/ACC Demo Day · Devconnect Buenos Aires</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=OkKtOzZkR-o">Watch ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><span class="talk-row-title">Will We Ever Have True P2P Digital Cash?</span><div class="talk-row-meta">Onchain Banking &amp; Fintech Hub · Devconnect</div></div>
+            <div class="row-links"><span class="small-label">Notes needed</span></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8">When Help Hurts: Why a Friendly Government is a Threat to Crypto</a><div class="talk-row-meta">Protocol Berg · Philosophy track · 20 min</div></div>
+            <div class="row-links"><a href="https://watch.protocol.berlin/65a90bf47932ebe436ba9351/watch?session=6851404d4ac43bf73d22ddb8">Watch ↗</a></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="year-block">
+        <div class="year-label">2024</div>
+        <ul class="talk-list">
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=Kw3rxKFUEKc">Wen p2p Electronic Cash System?</a><div class="talk-row-meta">Devcon 7 SEA · Talk · 25 min</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=Kw3rxKFUEKc">Watch ↗</a><a href="https://drive.google.com/file/d/1dMvlJ2kGv4x2idmRzv87LISnMMOksadw/view">Slides ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=J_VTceUdfgs">Chain abstraction? But I want to know where my tokens are</a><div class="talk-row-meta">Devcon 7 SEA · Lightning talk · 9 min</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=J_VTceUdfgs">Watch ↗</a><a href="https://drive.google.com/file/d/1_86XnoNJvrgp0_4z1JXExVEwqPfRfsri/view">Slides ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><span class="talk-row-title">Will we ever have a p2p digital cash system?</span><div class="talk-row-meta">Payments Cafe · EthCC week</div></div>
+            <div class="row-links"><span class="small-label">Date to confirm</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="year-block">
+        <div class="year-label">2023</div>
+        <ul class="talk-list">
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://streameth.org/65a90bf27932ebe436ba9348/watch?session=65b8f8d6a5b2d09b88ec197b">How can wallets deal with the multichain nightmare?</a><div class="talk-row-meta">WalletUnCon · Fishbowl session · 30 min</div></div>
+            <div class="row-links"><a href="https://streameth.org/65a90bf27932ebe436ba9348/watch?session=65b8f8d6a5b2d09b88ec197b">Watch ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://luma.com/vzui4m14">The Next Wave of Web3 Applications</a><div class="talk-row-meta">ETHCC Infra Breakfast · Panel · 40 min</div></div>
+            <div class="row-links"><a href="https://luma.com/vzui4m14">Event ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=q4NsLmTGNAU&t=9292s">No one should have to care about blockchain!</a><div class="talk-row-meta">The Next Billion Summit · Talk · 20 min</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=q4NsLmTGNAU&t=9292s">Watch ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=FFcFb6Arv3M">What Web3 can learn from Web2 to onboard the next billion users</a><div class="talk-row-meta">The Next Billion Summit · Panel · 45 min</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=FFcFb6Arv3M">Watch ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://web.archive.org/web/20230113151720id_/https://cryptosummit.ch/zurich-agenda">The evolution of Layer-2 scaling solutions</a><div class="talk-row-meta">Crypto Summit Zurich · Panel · 30 min</div></div>
+            <div class="row-links"><a href="https://web.archive.org/web/20230113151720id_/https://cryptosummit.ch/zurich-agenda">Agenda ↗</a></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.linkedin.com/posts/konrad-urban_giving-a-talk-what-decentralisation-maxies-activity-7018497064091176960-PRcQ">What decentralisation maxies can learn from CEXes</a><div class="talk-row-meta">PretzelDAO · Munich</div></div>
+            <div class="row-links"><span class="small-label">Details needed</span></div>
+          </li>
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://www.youtube.com/watch?v=VHslneMYZUw">The future of DeFi w/Peanut Protocol</a><div class="talk-row-meta">Lift99 DAO · Talk · 12 min</div></div>
+            <div class="row-links"><a href="https://www.youtube.com/watch?v=VHslneMYZUw">Watch ↗</a></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="year-block">
+        <div class="year-label">Earlier</div>
+        <ul class="talk-list">
+          <li class="talk-row">
+            <div><a class="talk-row-title" href="https://gap9.de/wp-content/uploads/2015/08/Programmheft-GAP.9-final.pdf">Global and Local Exclusivity in Intellectual Property</a><div class="talk-row-meta">GAP.9 Osnabrück · 2015 · Contributed talk</div></div>
+            <div class="row-links"><a href="https://gap9.de/wp-content/uploads/2015/08/Programmheft-GAP.9-final.pdf">Abstract ↗</a></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="podcast-title">
+      <div class="section-heading">
+        <h2 id="podcast-title">Podcasts</h2>
+        <p>Full episodes, not show-home links</p>
+      </div>
+      <div class="podcast-grid">
+        <article class="podcast-card">
+          <a href="https://open.spotify.com/episode/4KsIm8eFnrzu1Da8CvVqLD"><img class="podcast-art" src="https://image-cdn-ak.spotifycdn.com/image/ab6772ab000016921d7207417e9ebf1c53a0a08d" alt="Stable Stories episode artwork"></a>
+          <h3><a href="https://open.spotify.com/episode/4KsIm8eFnrzu1Da8CvVqLD">Send Crypto Like Email: Solving the Last Mile</a></h3>
+          <p>Stable Stories · 2026 · 38 min</p>
+        </article>
+        <article class="podcast-card">
+          <a href="https://open.spotify.com/episode/7uyZ58gkzQdVeT7jgO61me"><img class="podcast-art" src="https://i.scdn.co/image/ab6765630000ba8ae1cedba49e539bc726c08713" alt="Web3 on Fire podcast artwork"></a>
+          <h3><a href="https://open.spotify.com/episode/7uyZ58gkzQdVeT7jgO61me">Ambire Wallet × Peanut Protocol</a></h3>
+          <p>Web3 on Fire · 2023 · 37 min</p>
+        </article>
+        <article class="podcast-card">
+          <a href="https://www.deezer.com/en/episode/373590227"><img class="podcast-art" src="https://cdn-images.dzcdn.net/images/talk/a009532459e2453be16e9d85db8910db/500x500.jpg" alt="Human Story episode artwork"></a>
+          <h3><a href="https://www.deezer.com/en/episode/373590227">Human Story #104: Konrad Urban</a></h3>
+          <p>Human Story · 2020 · 2 hr</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="notes-title">
+      <div class="section-heading">
+        <h2 id="notes-title">Research gaps</h2>
+        <p>This panel would not ship on the live page</p>
+      </div>
+      <details class="notes-needed" open>
+        <summary>Talk notes or confirmation still needed from Konrad</summary>
+        <ul>
+          <li>ETHDenver 2026: abstract, deck, recording, or stage photo.</li>
+          <li>Devconnect 2025 P2P Digital Cash: exact slot, format, notes, and media.</li>
+          <li>Payments Cafe: year/date, event page, notes, and assets.</li>
+          <li>Whether the WalletUnCon “Wallets SUCK” session belongs here when the public notes list you as scribe.</li>
+          <li>Whether Full Node and Lift99 were separate talks.</li>
+          <li>IPFS Camp, Let’s Phi, Free Education, and On MVPs: dates, formats, and any surviving decks or photos.</li>
+          <li>Confirm the published names of the Polish and European philosophy talks.</li>
+          <li>Confirm whether “Krypto Rozmowy” is the Podróż po web3 interview found in research.</li>
+          <li>Anything identifying the Goodnews interview.</li>
+        </ul>
+      </details>
+    </section>
+
+    <p class="mockup-footer">Standalone design mockup. It does not replace <code>content/talks.md</code> until approved.</p>
+  </main>
+
+  <script>
+    const toggle = document.querySelector('.theme-toggle');
+    toggle.addEventListener('click', () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+  </script>
+</body>
+</html>
