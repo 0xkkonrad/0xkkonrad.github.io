@@ -16,7 +16,7 @@
         {{ $opts := dict "display" "block" }}
         {{ .Content | $.Page.RenderString $opts }}
 
-        {{- with hugo.Data.current_work }}
+        {{- with site.Data.current_work }}
         <section class="home-section current-work" aria-labelledby="current-work-title">
             <h2 class="home-section-title" id="current-work-title">What I’m building now</h2>
             <div class="current-work-card">
@@ -34,7 +34,7 @@
         </section>
         {{- end }}
 
-        {{- with hugo.Data.selected_writing }}
+        {{- with site.Data.selected_writing }}
         <section class="home-section selected-writing" aria-labelledby="start-here-title">
             <h2 class="home-section-title" id="start-here-title">Musings</h2>
             <div class="featured-writing-list">
@@ -55,7 +55,7 @@
         </section>
         {{- end }}
 
-        {{- with hugo.Data.experiments }}
+        {{- with site.Data.experiments }}
         <section class="home-section earlier-experiments" aria-labelledby="experiments-title">
             <h2 class="home-section-title" id="experiments-title">Earlier experiments</h2>
             <p class="home-section-intro">Some worked. Some didn’t. All of them taught me something.</p>
