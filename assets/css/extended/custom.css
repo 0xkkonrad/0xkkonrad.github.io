@@ -119,6 +119,10 @@ button:focus-visible {
 }
 
 .current-work-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 1.5rem;
+    align-items: center;
     padding: 1.5rem;
     border: 1px solid var(--primary);
     background: var(--entry);
@@ -129,29 +133,24 @@ button:focus-visible {
     font-size: 1.45rem;
 }
 
-.current-work-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: 0.4rem;
-    row-gap: 0.25rem;
-}
-
 .current-work-copy h3 a,
 .current-work-link a {
     text-decoration: underline;
     text-underline-offset: 0.3rem;
 }
 
-.current-work-copy h3 .current-work-logo-link {
-    display: inline-flex;
+.current-work-brand {
+    display: flex;
     align-items: center;
+    justify-content: center;
+    justify-self: end;
+    min-height: 44px;
     text-decoration: none;
 }
 
 .current-work-logo {
     display: block;
-    width: 96px;
+    width: 88px;
     height: auto;
 }
 
@@ -172,6 +171,17 @@ button:focus-visible {
 
 .current-work-link {
     margin-bottom: 0;
+}
+
+@media screen and (max-width: 480px) {
+    .current-work-card {
+        grid-template-columns: minmax(0, 1fr) 64px;
+        gap: 1rem;
+    }
+
+    .current-work-logo {
+        width: 64px;
+    }
 }
 
 .selected-writing {
