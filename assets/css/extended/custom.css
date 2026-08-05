@@ -150,12 +150,8 @@ button:focus-visible {
 
 .current-work-logo {
     display: block;
-    width: 88px;
+    width: 56px;
     height: auto;
-}
-
-[data-theme="dark"] .current-work-logo {
-    filter: invert(1);
 }
 
 .current-work-stats {
@@ -180,7 +176,7 @@ button:focus-visible {
     }
 
     .current-work-logo {
-        width: 64px;
+        width: 44px;
     }
 }
 
