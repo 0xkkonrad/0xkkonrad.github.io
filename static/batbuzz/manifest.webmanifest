@@ -1,0 +1,16 @@
+{
+  "name": "BatBuzz",
+  "short_name": "BatBuzz",
+  "description": "A quiet way to find the right events.",
+  "id": "/batbuzz/",
+  "start_url": "/batbuzz/",
+  "scope": "/batbuzz/",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#f4f1e8",
+  "icons": [
+    { "src": "icons/bat-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/bat-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/bat-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
