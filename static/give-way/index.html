@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f5ec"><title>Give Way — a little sailing practice</title>
+  <meta name="description" content="Practice who gives way at sea. Move boats, change the wind, and test yourself with ten sailing and motorboat scenarios.">
+  <link rel="canonical" href="https://kkonrad.com/give-way/">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Give Way"><svg viewBox="0 0 38 40" aria-hidden="true"><path d="M20 4 5 27l16 -1Z M24 12l10 14-10 1Z M4 31q14 7 30 -1l-7 6-15 1Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>give way<span>.</span></a>
+    <nav class="scenario-nav" aria-label="Scenarios"><button class="icon-button" id="previous" aria-label="Previous scenario" title="Previous scenario"></button><div class="scenario-anchor"><button id="scenario-button" aria-expanded="false" aria-controls="scenario-menu"><span id="scenario-name"></span><span class="chevron">⌄</span></button><div id="scenario-menu" class="floating" hidden></div></div><button class="icon-button" id="next" aria-label="Next scenario" title="Next scenario"></button></nav>
+    <div class="tools"><button class="icon-button" id="add-boat" aria-label="Add boat" title="Add boat"></button><button class="icon-button" id="reset" aria-label="Reset scenario" title="Reset scenario"></button><button class="icon-button" id="help-button" aria-label="Help" title="Help"></button></div>
+  </header>
+  <main id="playground">
+    <svg id="sea" viewBox="0 0 1000 650" role="group" aria-label="Sea map. Boats can be moved and rotated. Select a boat to edit it."></svg>
+    <div id="wind-control" role="slider" tabindex="0" aria-label="Wind direction, coming from" aria-valuemin="0" aria-valuemax="359" aria-valuenow="0" title="Drag to turn the wind; arrow keys also work"><svg id="wind-compass" viewBox="0 0 112 112" aria-hidden="true"></svg><span class="wind-caption">wind from <b id="wind-value">N</b></span></div>
+    <div class="north-mark" aria-hidden="true"><span>N</span><svg viewBox="0 0 20 44"><path d="M10 40 10 5 M4 14 10 4 16 14"/></svg></div>
+    <section id="boat-popover" class="floating boat-popover" role="dialog" aria-modal="false" aria-labelledby="boat-name" hidden></section>
+    <section id="point-popover" class="floating point-popover" aria-label="Encounter geometry" hidden></section>
+    <section id="answer-tray" aria-label="Encounter answer"></section>
+    <div class="map-scale" aria-hidden="true"><i></i><span>100 m</span></div>
+  </main>
+  <dialog id="help-dialog"><button class="icon-button dialog-close" id="close-help" aria-label="Close help" title="Close"></button><h1>A little sea sense.</h1><div class="help-actions"><span>✥ <b>Drag</b> to move</span><span>↻ <b>Ring</b> to turn</span><span>☝ <b>Tap</b> to edit</span></div><p>Try a scenario, or make your own. Predict who gives way, then reveal.</p><details><summary>Reading the map</summary><p>Dashed lines follow the current headings. A hollow cross is where paths meet. A filled cross marks a projected close pass. The shaded circle represents the close-pass margin. Click a cross for timing and closest approach.</p><p>Auto matches arrival times where forward tracks meet. Editing speed switches Auto off; turn it back on in either boat’s controls. Parallel overtaking is supported. With several boats, it targets one meeting area; other encounters may remain. Speed alone cannot join diverging paths. Auto uses 0.1–20 kn; these limits can leave a near pass instead of an exact meeting.</p><p>Boat icons are enlarged. Wind arrows point in the direction the wind blows; the compass names where it comes from.</p><p>For keyboard control, focus a boat or rotation handle and use the arrows. Enter opens boat settings. Wind also responds to arrows.</p></details><details><summary>Model & rules</summary><p>Open water, vessels in sight, steady motion. Each edit sets a fresh encounter. Earlier overtaking obligations and the need for stand-on intervention require history and context.</p><p>The model uses a 35° sailing no-go angle and 6° head-on aspect tolerance. These are teaching assumptions. Channels, traffic schemes, current, leeway, restricted visibility and local rules need additional context.</p><label class="margin-setting" for="margin">Close-pass margin <select id="margin"><option value="50">50 m</option><option value="100">100 m</option><option value="250" selected>250 m</option><option value="500">500 m</option></select></label><p>The margin is a practice setting, not a regulatory safe distance. With several boats, check the whole encounter before choosing a manoeuvre.</p><a href="https://www.navcen.uscg.gov/navigation-rules-amalgamated" target="_blank" rel="noreferrer">COLREGs reference ↗</a></details></dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

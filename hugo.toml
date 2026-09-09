@@ -80,9 +80,9 @@ Find me on [LinkedIn](https://www.linkedin.com/in/konrad-urban/), [Twitter](http
   weight = 20
 
 [[menu.main]]
-  identifier = "beyond-payments"
+  identifier = "beyond"
   name = "beyond"
-  url = "/beyond-payments/"
+  url = "/beyond/"
   weight = 30
 
 [[menu.main]]

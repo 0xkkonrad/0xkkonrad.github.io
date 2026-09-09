@@ -1,7 +1,8 @@
 ---
-title: "Beyond payments"
-description: "Dance communities, film work, and journalism."
+title: "Beyond"
+description: "Dance communities, film work, journalism, and small experiments."
 aliases:
+  - /beyond-payments/
   - /misc/
 hideMeta: true
 ShowToc: false
@@ -28,3 +29,7 @@ I co-founded:
 
 - I worked as a fixer for [Ángela Rodicio](https://en.wikipedia.org/wiki/%C3%81ngela_Rodicio) and her team during the first days of the Russian invasion of Ukraine.
 - I worked as a photographer for *Süddeutsche Zeitung*.
+
+## Misc
+
+- [Give Way](/give-way/) — a sailing sandbox to practise who gives way at sea.
