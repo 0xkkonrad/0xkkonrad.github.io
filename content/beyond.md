@@ -33,3 +33,6 @@ I co-founded:
 ## Misc
 
 - [Give Way](/give-way/) — a sailing sandbox to practise who gives way at sea.
+- [Keep Club](https://keepclub.app/) — spaced repetition for things you want to remember.
+- [PeanutSplit](https://peanutsplit.com/) — split expenses with friends through a shared link.
+- [15:60](/15-60/) — research an idea for 15 minutes, then explain it in 60 seconds.
