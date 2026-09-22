@@ -1,6 +1,6 @@
 # Waffle
 
-Waffle lives at [kkonrad.com/waffle/](https://kkonrad.com/waffle/). Its source is `static/waffle/`; Hugo copies it unchanged. It has no build dependencies, accounts, analytics, or backend.
+Waffle lives at [kkonrad.com/waffle/](https://kkonrad.com/waffle/). Its source and automated checks live in [the standalone Waffle repository](https://github.com/0xkkonrad/waffle). Releases copy that repository’s `web/` directory to `static/waffle/`; Hugo publishes those files unchanged. It has no build dependencies, accounts, analytics, or backend.
 
 ## Daily flow
 
@@ -22,16 +22,9 @@ Settings include local storage protection and JSON backup download/restore. Prot
 
 ## Development and checks
 
-Serve the site’s `static/` directory over localhost, using port 8777 when free. Open `http://localhost:8777/waffle/index.html`. Use a fresh browser profile or unregister this app’s service worker while changing cached assets.
+Use the [standalone repository’s development and test commands](https://github.com/0xkkonrad/waffle#checks). They cover model behavior, browser workflows, keyboard access, concurrent backup restoration, and two-window PWA upgrades with running, paused, and completed timers.
 
-```sh
-node --test tests/waffle/model.test.mjs
-WAFFLE_PLAYWRIGHT=/absolute/path/to/@playwright/test node tests/waffle/browser.cjs
-```
-
-The browser suite needs Playwright and its Chromium browser. `WAFFLE_URL` overrides the app URL (include the trailing slash); `WAFFLE_QA` selects a screenshot/output directory. Test histories stay in isolated browser contexts. No fixture or timer-skip controls ship in the app.
-
-Coverage includes pause/reload recovery, deadlines, midnight ownership, edited limits, mandatory ratings, corrections, streaks, off days, undo, two-window rating races, offline use, backups, calendar tiles, and small/large layouts.
+The [22 September QA report](https://github.com/0xkkonrad/waffle/blob/main/docs/qa-2026-09-22.md) records verified fixes, performance measurements, rejected findings, and testing limits.
 
 ## Deployment
 
