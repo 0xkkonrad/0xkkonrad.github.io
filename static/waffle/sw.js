@@ -1,4 +1,4 @@
-const CACHE = 'waffle-shell-v1';
+const CACHE = 'waffle-shell-v2';
 const SCOPE = new URL(self.registration.scope);
 const SHELL = [
   './', './index.html', './app.js', './model.js', './storage.js', './view.js', './icons.js',

@@ -10,6 +10,7 @@ const ui = {
   page: location.hash === '#calendar' ? 'calendar' : 'home', selectedDay: dateKey(), month: dateKey().slice(0, 7),
   sheet: null, toast: null, standalone: standalone.matches || navigator.standalone === true,
   installReady: false, updateReady: false, notificationSupported: 'Notification' in window && 'serviceWorker' in navigator,
+  wakeLockSupported: Boolean(navigator.wakeLock), alertsPending: false,
   permission: 'Notification' in window ? Notification.permission : 'denied', protected: false,
 };
 let state, busy = false, toastTimer, installPrompt, registration, backup, audio, wakeLock, wakePending = false, reloading = false;
@@ -217,11 +218,21 @@ root.addEventListener('click', async event => {
       if (installPrompt) { await installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; ui.installReady = false; closeSheet(); }
       break;
     case 'alerts':
-      if (state.settings.alerts) await apply({ type: 'SETTING', key: 'alerts', value: false });
+      if (state.settings.alerts && ui.permission === 'granted') await apply({ type: 'SETTING', key: 'alerts', value: false });
       else {
-        ui.permission = await Notification.requestPermission();
-        if (ui.permission === 'granted') await apply({ type: 'SETTING', key: 'alerts', value: true });
-        else toast('Allow notifications in your browser’s site settings.');
+        ui.alertsPending = true; paint();
+        try {
+          // Returning from the browser prompt also triggers a focus refresh.
+          busy = true;
+          try { ui.permission = await Notification.requestPermission(); }
+          finally { busy = false; }
+          if (ui.permission === 'granted') await apply({ type: 'SETTING', key: 'alerts', value: true });
+          else if (ui.permission === 'default') toast('Notifications weren’t enabled.');
+        } catch { toast('Notifications could not be enabled.'); }
+        finally {
+          ui.alertsPending = false; paint();
+          if (pendingSync && !busy) { pendingSync = false; void sync(); }
+        }
       }
       break;
     case 'protect':

@@ -71,7 +71,17 @@ function history(state, ui) {
 }
 
 function settings(state, ui) {
-  return `<div class="settings-list">${[['sound', 'sound'], ['keepAwake', 'keep screen on']].map(([key, label]) => `<button class="inline-row" data-setting="${key}" aria-pressed="${state.settings[key]}">${label}<span>${state.settings[key] ? 'on' : 'off'}</span></button>`).join('')}<button class="inline-row" data-action="alerts" aria-pressed="${state.settings.alerts}" ${!ui.notificationSupported ? 'disabled' : ''}>timer alerts<span>${!ui.notificationSupported ? 'unavailable' : ui.permission === 'denied' ? 'blocked' : state.settings.alerts ? 'on' : 'off'}</span></button><p class="setting-note">Alerts may be delayed when Android closes or suspends Waffle.</p>${row(ui.protected ? 'device storage protected' : 'protect local saves', 'protect', ui.protected)}${row('download backup', 'export')}${row('restore backup', 'import')}<p class="setting-note">Saved on this device. No account or sync.</p></div>`;
+  const alertHint = !ui.notificationSupported ? 'Not supported in this browser.'
+    : ui.permission === 'denied' ? 'Blocked. Allow notifications in browser settings.'
+    : ui.alertsPending ? 'Waiting for permission…' : '';
+  const switches = [
+    { key: 'sound', label: 'sound', checked: state.settings.sound },
+    { key: 'keepAwake', label: 'keep screen on', checked: state.settings.keepAwake && ui.wakeLockSupported,
+      hint: ui.wakeLockSupported ? 'While the timer runs.' : 'Not supported in this browser.', disabled: !ui.wakeLockSupported },
+    { key: 'alerts', label: 'timer alerts', checked: state.settings.alerts && ui.permission === 'granted', hint: alertHint,
+      disabled: !ui.notificationSupported || ui.permission === 'denied' || ui.alertsPending },
+  ];
+  return `<div class="settings-list"><div class="settings-toggles">${switches.map(({ key, label, checked, hint, disabled }) => `<button type="button" class="setting-switch" role="switch" aria-checked="${checked}" aria-labelledby="setting-${key}-label" ${hint ? `aria-describedby="setting-${key}-hint"` : ''} ${key === 'alerts' ? 'data-action="alerts"' : `data-setting="${key}"`} ${disabled ? 'disabled' : ''} ${key === 'alerts' && ui.alertsPending ? 'aria-busy="true"' : ''}><span class="setting-label"><span id="setting-${key}-label">${label}</span>${hint ? `<small id="setting-${key}-hint">${hint}</small>` : ''}</span><span class="switch-box" aria-hidden="true">${icon('check')}</span></button>`).join('')}</div><p class="setting-note">Alerts may be delayed when Android suspends Waffle.</p><div class="settings-actions">${row(ui.protected ? 'device storage protected' : 'protect local saves', 'protect', ui.protected)}${row('download backup', 'export')}${row('restore backup', 'import')}</div><p class="setting-note">Saved on this device. No account or sync.</p></div>`;
 }
 
 function sheet(state, ui) {
