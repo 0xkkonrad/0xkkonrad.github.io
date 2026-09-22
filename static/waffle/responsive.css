@@ -1,0 +1,27 @@
+html{background:var(--paper)}
+body{background:var(--paper);min-height:100dvh}
+.waffle-screen{width:100%;max-width:440px;height:100dvh;min-height:440px;margin:auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.app-body{padding-bottom:24px;overflow-y:auto;scrollbar-width:thin}
+.app-header{min-height:83px;padding-top:14px}
+.countdown{font-size:clamp(74px,24vw,104px)}
+.calendar-page{padding-bottom:18px}
+.calendar-page .month-row button{min-width:44px;min-height:44px}
+.calendar-visual .calendar-day{touch-action:manipulation}
+.app-sheet{padding-bottom:max(28px,env(safe-area-inset-bottom));max-height:94%}
+.sheet-title{margin-bottom:15px}
+.sheet-links{padding-top:7px}
+.sheet-links .inline-row{min-height:46px}
+.previous-date{font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
+.settings-list .inline-row{min-height:51px;border-bottom:1px solid var(--line)}
+.settings-list .inline-row[aria-pressed=true]>span{font-weight:500}
+.setting-note{font-size:10px!important;color:var(--muted);line-height:1.75;margin:12px 0 14px!important}
+.loading-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:35px;text-align:center;line-height:1.7}
+.loading-screen p{font-size:12px}
+.loading-screen .primary{max-width:270px}
+.app-toast{bottom:103px;pointer-events:none}
+.app-toast button{pointer-events:auto}
+.budget-list{flex-shrink:0}
+button{touch-action:manipulation}
+@media(min-width:600px){body{background:#ede9df;display:grid;place-items:center;padding:24px}.waffle-screen{height:min(860px,calc(100dvh - 48px));border:1px solid #43332150;border-radius:25px;box-shadow:0 4px 0 #43332115}.countdown{font-size:103px}}
+@media(max-height:720px){.app-header{min-height:70px;padding-top:8px}.app-body{padding-top:12px}.planning .plan-mascot{min-height:65px;max-height:140px}.mascot{width:73px;height:73px}.plan-field{min-height:73px}.plan-fields{padding-bottom:20px}.timer-center{padding-bottom:24px}.rating-center{padding-bottom:18px;gap:20px}.rating-options button{min-height:94px!important}.rating-bottom{gap:17px}.calendar-page,.history-page{padding-top:0}}
+@media(max-height:570px){.plan-mascot{display:none}.app-header{min-height:60px}.plan-field{min-height:65px}.plan-fields{padding-bottom:12px}.page-title{padding-top:0}.app-bottom .primary{min-height:49px}.timer-center{gap:15px;padding-bottom:12px}.countdown{font-size:75px}.rating-center{padding-bottom:10px;gap:12px}.result-center{gap:14px;padding-bottom:20px}.result-mascot{width:63px;height:63px}}
