@@ -34,6 +34,6 @@ The manifest and worker are scoped to `/faff/`. They do not cache or control the
 
 Provisional design: 01A Loose end logo, IBM Plex Mono 400/500, paper/graphite/citron palette, large countdown, tiny budget blocks, no bottom tabs. Font licensing is in `static/faff/fonts/OFL.txt`.
 
-The [logo picker](https://kkonrad.com/faff/brand/index.html) has 10 directions and 5 variations each. The former app route contains only the redirect, replacement service worker, and install manifest from the source repository’s `legacy/` directory. Keep these files for installed apps and old bookmarks.
+The [logo picker](https://kkonrad.com/faff/brand/index.html) has 10 directions and 5 variations each. The former app route contains only the redirect, replacement service worker, and install manifest from the source repository’s `legacy/` directory. Keep these files for installed apps and old bookmarks. Installed users apply the existing “update available” control to move to Faff; first visits redirect immediately.
 
 Faff migrates the previous database on first open and accepts old backups. The source repository’s migration suite verifies running, paused, and completed timers across the route change. The previous database is retained; new Faff state takes precedence thereafter.
