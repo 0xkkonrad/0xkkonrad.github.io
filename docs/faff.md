@@ -10,6 +10,8 @@ Pause before ending a day early. Unfinished minutes are recorded separately and 
 
 The calendar shows session tiles: one fixed-size tile per session, dark for focus and citron for faff. Days off use `-`. The logo returns to the timer.
 
+The **sounds** panel offers bell, chime, and double-beep session alerts, plus optional brown noise or soft rain while the timer runs. Chimes and background audio have separate volume controls and previews. Background audio starts off, pauses with the timer, and stops at completion. Sounds are generated locally and work offline. After reloading a running timer, **enable sound** restores audio with the tap browsers require. Browsers with Web Locks keep background audio in one Faff window at a time.
+
 ## Installation and saved data
 
 In Android Chrome, open Faff and use the browser’s Install app / Add to Home screen command, or the app’s install option. Installation opens it without browser controls. All assets, including fonts, are local and cached after the first successful online visit.
