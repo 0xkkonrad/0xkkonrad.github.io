@@ -154,15 +154,15 @@ button:focus-visible {
     height: auto;
 }
 
-.current-work-stats {
-    margin: 0.9rem 0 1rem;
-    padding-left: 1.25rem;
+.current-work-tagline {
+    margin: 0 0 1rem;
     color: var(--content);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
 }
 
-.current-work-stats li {
-    margin: 0.25rem 0;
+.current-work-tagline a {
+    text-decoration: underline;
+    text-underline-offset: 0.3rem;
 }
 
 .current-work-link {

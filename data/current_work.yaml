@@ -3,9 +3,7 @@ url: "https://peanut.me/"
 logo: "/images/peanut-mark.svg"
 logo_width: 114
 logo_height: 150
-description: "a global cash app"
 role: "Cofounder"
-stats:
-  - "140+ countries"
-  - "50+ currencies"
-  - "10k users"
+company: "Squirrel Labs"
+company_url: "https://squirrellabs.dev/"
+tagline: "I think people should hold their own money. [Peanut](https://peanut.me/) makes that easy."
