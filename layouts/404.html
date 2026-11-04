@@ -1,0 +1,10 @@
+{{- define "main" }}
+<script>
+// /cal and /cal/<event> forward to cal.com/kkonrad/<event>; these paths stay 404s so crawlers never index them.
+(function () {
+    var m = location.pathname.match(/^\/cal(?:\/(.*?))?\/?$/);
+    if (m) location.replace("https://cal.com/kkonrad" + (m[1] ? "/" + m[1] : "") + location.search);
+})();
+</script>
+<div class="not-found">404</div>
+{{- end }}{{/* end main */ -}}
