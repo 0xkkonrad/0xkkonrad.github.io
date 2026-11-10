@@ -1,8 +1,8 @@
 {
   "id": "/swear-jar/",
-  "name": "Swear Jar — Cute faces. Foul mouths.",
+  "name": "Swear Jar",
   "short_name": "Swear Jar",
-  "description": "A very cute record of your very bad language. Two people. One jar. Absolutely no character development.",
+  "description": "A shared swear jar for two. Offline counts, stickers and stats.",
   "start_url": "/swear-jar/",
   "scope": "/swear-jar/",
   "display": "standalone",
@@ -10,14 +10,56 @@
   "theme_color": "#faf6ed",
   "orientation": "portrait-primary",
   "lang": "en",
-  "categories": ["lifestyle", "games"],
+  "categories": [
+    "lifestyle",
+    "games"
+  ],
   "icons": [
-    {"src":"assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-    {"src":"assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
-    {"src":"assets/maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    {"name":"+ Goblin","short_name":"+ Goblin","description":"Open Goblin's quick swear button","url":"/swear-jar/?add=0","icons":[{"src":"assets/shortcut-0.png","sizes":"192x192","type":"image/png"}]},
-    {"name":"+ Gremlin","short_name":"+ Gremlin","description":"Open Gremlin's quick swear button","url":"/swear-jar/?add=1","icons":[{"src":"assets/shortcut-1.png","sizes":"192x192","type":"image/png"}]}
+    {
+      "name": "+ Goblin",
+      "short_name": "+ Goblin",
+      "description": "Open Goblin's quick swear button",
+      "url": "/swear-jar/?add=0",
+      "icons": [
+        {
+          "src": "assets/shortcut-0.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "+ Gremlin",
+      "short_name": "+ Gremlin",
+      "description": "Open Gremlin's quick swear button",
+      "url": "/swear-jar/?add=1",
+      "icons": [
+        {
+          "src": "assets/shortcut-1.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

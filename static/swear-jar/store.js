@@ -1,4 +1,5 @@
 import { API_URL } from './config.js';
+import { AVATAR_IDS, DEFAULT_AVATARS } from './avatars.js';
 
 const PREFIX = 'swearjar:v1:';
 const SECRET_RE = /^[a-f0-9]{64}$/;
@@ -6,11 +7,12 @@ const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9
 export const DEFAULT_NAMES = ['Goblin', 'Gremlin'];
 export function validEvent(e) {
   return e && UUID_RE.test(e.id) && [0, 1].includes(e.player) &&
-    ['swear', 'undo', 'rename'].includes(e.type) &&
+    ['swear', 'undo', 'rename', 'avatar'].includes(e.type) &&
     typeof e.at === 'string' && /(?:Z|[+-]\d\d:\d\d)$/.test(e.at) && Number.isFinite(Date.parse(e.at)) &&
     /^\d{4}-\d{2}-\d{2}$/.test(e.day) && Number.isInteger(e.hour) && e.hour >= 0 && e.hour <= 23 &&
     (e.type !== 'undo' || UUID_RE.test(e.target)) &&
-    (e.type !== 'rename' || (typeof e.name === 'string' && e.name.trim().length > 0 && e.name === e.name.trim() && !/[\x00-\x1f\x7f]/.test(e.name) && [...e.name].length <= 24));
+    (e.type !== 'rename' || (typeof e.name === 'string' && e.name.trim().length > 0 && e.name === e.name.trim() && !/[\x00-\x1f\x7f]/.test(e.name) && [...e.name].length <= 24)) &&
+    (e.type !== 'avatar' || AVATAR_IDS.includes(e.avatar));
 }
 export function activeEvents(events) {
   const undone = new Set(events.filter(e => e.type === 'undo').map(e => e.target));
@@ -45,8 +47,10 @@ export function createStore(options = {}) {
   function getState() {
     const all = ordered();
     const names = [...DEFAULT_NAMES];
+    const avatars = [...DEFAULT_AVATARS];
     for (const event of all) if (event.type === 'rename') names[event.player] = event.name;
-    return { jarId: secret.slice(0, 12), secret, names, events: all, status, error, lastSync,
+    for (const event of all) if (event.type === 'avatar') avatars[event.player] = event.avatar;
+    return { jarId: secret.slice(0, 12), secret, names, avatars, events: all, status, error, lastSync,
       pending: all.filter(e => !acknowledged.has(e.id)).length };
   }
   function emit() { if (!destroyed) for (const fn of listeners) fn(getState()); }
@@ -113,7 +117,7 @@ export function createStore(options = {}) {
         const timeout=setTimeout(()=>controller.abort(),25000);
         let response;
         try { response=await transport(api+'/sync',{method:'POST',credentials:'omit',cache:'no-store',
-          headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:runSecret,events:pending}),signal:controller.signal}); }
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:runSecret,events:pending,protocol:2}),signal:controller.signal}); }
         finally { clearTimeout(timeout); }
         if (!response.ok) throw new Error(response.status===429 ? 'The jar needs a breather. Your swears are saved here; sync will retry.' : 'The shared jar is temporarily unavailable. Your swears are saved here.');
         const data=await response.json();
@@ -177,6 +181,10 @@ export function createStore(options = {}) {
       return append('undo',target.player,{target:target.id});
     },
     rename(player,name) {return append('rename',player,{name:String(name).trim()});},
+    setAvatar(player,avatar) {
+      if (!AVATAR_IDS.includes(avatar)) return Promise.reject(new Error('Choose an avatar from the picker.'));
+      return append('avatar',player,{avatar});
+    },
     sync,
     getInviteUrl() {const url=new URL(location?.href||'https://kkonrad.com/swear-jar/');url.search='';url.hash='jar='+secret;return url.href;},
     exportData() {return {app:'Swear Jar',version:1,exportedAt:new Date().toISOString(),inviteUrl:this.getInviteUrl(),...getState()};},

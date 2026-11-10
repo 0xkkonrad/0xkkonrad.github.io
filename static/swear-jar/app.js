@@ -1,12 +1,15 @@
 import { createStore, activeEvents, localDay } from './store.js';
 import { ACHIEVEMENTS, ROASTS, LEVELS } from './brand.js';
 import { setupPWA } from './pwa.js';
+import { avatarById } from './avatars.js';
+import { createAvatarPicker } from './avatar-picker.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const format = value => new Intl.NumberFormat().format(value);
-const art = name => `./assets/stickers/${name}`;
+const art = id => avatarById(id).src;
 const icons = {
+  dice: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01" stroke-width="3"/>',
   sound: '<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
   muted: '<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/>',
   settings: '<path d="m9 3-.5 3-2 1.1L4 6l-2 3 2.4 2v2L2 15l2 3 2.5-1.1 2 1.1.5 3h4l.5-3 2-1.1L18 18l2-3-2.4-2v-2L20 9l-2-3-2.5 1.1-2-1.1-.5-3Z"/><circle cx="11" cy="12" r="3"/>',
@@ -18,8 +21,10 @@ const icons = {
 const svg = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || ''}</svg>`;
 const store = createStore();
 let state = store.getState();
+let avatarPlayer = null;
+const avatarPicker = createAvatarPicker({onSelect: (player,id) => store.setAvatar(player,id)});
 let currentTab = 'jar', period = 'all', stickerFilter = 'all', historyLimit = 30;
-let toastTimer, audioContext, pwa, quickPlayer = null;
+let toastTimer, audioContext, pwa;
 let settings = { sound: true, haptics: true };
 try { settings = { ...settings, ...JSON.parse(localStorage.getItem('swearjar:preferences') || '{}') }; } catch { /* Preferences never prevent opening the jar. */ }
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -46,8 +51,7 @@ function levelFor(count) {
 }
 function conditionFor(achievement) {
   const n = format(achievement.threshold);
-  const swears=achievement.threshold===1?'swear':'swears';
-  return ({total:`${n} ${swears} in your shared jar`,playerTotal:`${n} ${swears} from either player`,bothTotal:`${n} ${swears} from each player`,dayTotal:`${n} ${swears} in one day`,daysActive:`Log swears on ${n} different days`,lateNight:'Log a swear between midnight and 4:59 am',earlyBird:'Log a swear between 5:00 and 8:59 am'})[achievement.rule] || `${n} little crimes`;
+  return ({total:`${n} total`,playerTotal:`${n} by one player`,bothTotal:`${n} each`,dayTotal:`${n} in a day`,daysActive:`Log swears on ${n} different days`,lateNight:'1 swear, midnight–4:59 am',earlyBird:'1 swear, 5:00–8:59 am'})[achievement.rule] || `${n} little crimes`;
 }
 function weekDays() {
   const days = [];
@@ -75,7 +79,7 @@ function showToast(message, options = {}) {
   let region=$('toast-region');
   if(modal){
     region=modal.querySelector('.dialog-feedback');
-    if(!region){region=document.createElement('div');region.className='dialog-feedback';region.setAttribute('role','status');modal.querySelector('.dialog-inner').prepend(region);}
+    if(!region){region=document.createElement('div');region.className='dialog-feedback';region.setAttribute('role','status');modal.querySelector('.dialog-inner, .avatar-dialog-inner').prepend(region);}
   }
   region.replaceChildren(toast);
   toastTimer=setTimeout(()=>{region.replaceChildren();},options.duration || 5500);
@@ -124,73 +128,88 @@ async function add(player) {
   try {
     const event=await store.addSwear(player);
     const gained=ACHIEVEMENTS.filter(item=>unlocked(item,statsFor())&&!before.has(item.id));
-    const undo=async()=>{try{await store.undo(event.id);showToast('Evidence destroyed. You little angel.');}catch(error){showError(error);}};
+    const undo=async()=>{try{await store.undo(event.id);showToast('Undone.');}catch(error){showError(error);}};
     celebrate(player,gained.length>0);
-    if(gained.length){const sticker=gained.at(-1);sound(player,true);showToast(`Unlocked: ${sticker.title}`,{sticker:sticker.sticker,detail:gained.length>1?`${gained.length} new stickers. Your downfall is adorable.`:sticker.description,action:undo,duration:7500});}
+    if(gained.length){const sticker=gained.at(-1);sound(player,true);showToast(`Unlocked: ${sticker.title}`,{sticker:sticker.sticker,detail:gained.length>1?`${gained.length} new stickers`:undefined,action:undo,duration:6500});}
     else {const roasts=Array.isArray(ROASTS)?ROASTS:['One swear. Zero character development.'];showToast(roasts[Math.floor(Math.random()*roasts.length)] || '+1 little crime.',{action:undo});}
   } catch(error){showError(error);}
 }
 function renderPlayers(stats) {
   if (!$('player-card-0')) {
-    $('player-grid').innerHTML=[0,1].map(player=>`<div class="player-wrap"><button class="player-card player-${player}" id="player-card-${player}" type="button"><span class="player-number">SUSPECT 0${player+1}</span><span class="player-name" id="player-name-${player}"></span><span class="player-title" id="player-title-${player}"></span><img class="player-mascot" src="${art(player===0?'devil-bunny.svg':'angel-slime.svg')}" width="150" height="150" alt=""><span class="score-line"><span class="score" id="player-score-${player}">0</span><span class="score-label">LIFETIME<br>SWEARS</span></span><span class="tap-hint">TAP TO CONFESS</span><span class="plus" aria-hidden="true">+</span></button><button class="rename-button" id="rename-${player}" type="button" aria-label="Rename player ${player+1}">${svg('pencil')}</button><div class="player-under" id="player-under-${player}"></div></div>`).join('');
-    [0,1].forEach(player=>{ $(`player-card-${player}`).addEventListener('click',()=>add(player));$(`rename-${player}`).addEventListener('click',()=>openSettings(player)); });
+    $('player-grid').innerHTML=[0,1].map(player=>`<div class="player-wrap"><button class="player-card player-${player}" id="player-card-${player}" type="button"><span class="player-name" id="player-name-${player}"></span><span class="player-title" id="player-title-${player}"></span><span class="score-line"><span class="score" id="player-score-${player}">0</span><span class="score-label">total</span></span><span class="plus" aria-hidden="true">+</span></button><button class="avatar-edit" id="avatar-edit-${player}" type="button"><img id="player-mascot-${player}" width="150" height="150" alt=""><span class="avatar-edit-die" aria-hidden="true">${svg('dice')}</span></button><button class="rename-button" id="rename-${player}" type="button">${svg('pencil')}</button><div class="player-under" id="player-under-${player}"></div></div>`).join('');
+    [0,1].forEach(player=>{
+      $(`player-card-${player}`).addEventListener('click',()=>add(player));
+      $(`rename-${player}`).addEventListener('click',()=>openSettings(player));
+      $(`avatar-edit-${player}`).addEventListener('click',()=>{
+        avatarPlayer=player;
+        avatarPicker.open({player,name:state.names[player],selected:state.avatars[player]});
+      });
+    });
   }
   [0,1].forEach(player=>{
-    $(`player-name-${player}`).textContent=state.names[player];$(`player-title-${player}`).textContent=levelFor(stats.totals[player]);$(`player-score-${player}`).textContent=format(stats.totals[player]);
+    $(`player-name-${player}`).textContent=state.names[player];
+    $(`player-name-${player}`).title=state.names[player];
+    $(`player-title-${player}`).textContent=levelFor(stats.totals[player]);
+    $(`player-score-${player}`).textContent=format(stats.totals[player]);
     $(`player-card-${player}`).style.setProperty('--digits',String(format(stats.totals[player]).length));
     $(`player-card-${player}`).classList.toggle('big-count',stats.totals[player]>=1000);
     $(`player-card-${player}`).setAttribute('aria-label',`Add one swear for ${state.names[player]}. ${format(stats.totals[player])} so far.`);
     $(`rename-${player}`).setAttribute('aria-label',`Rename ${state.names[player]}`);
+    $(`avatar-edit-${player}`).setAttribute('aria-label',`Change ${state.names[player]}'s avatar`);
+    $(`player-mascot-${player}`).src=art(state.avatars[player]);
     const today=stats.events.filter(event=>event.player===player&&event.day===localDay()).length;
-    const share=stats.total?Math.round(stats.totals[player]/stats.total*100):0;
-    $(`player-under-${player}`).innerHTML=`<span><b>${format(today)}</b> today</span><span><b>${share}%</b> of the damage</span>`;
+    $(`player-under-${player}`).innerHTML=`<span><b>${format(today)}</b> today</span>`;
   });
   const lead=Math.abs(stats.totals[0]-stats.totals[1]);
   const leader=state.names[stats.totals[0]>=stats.totals[1]?0:1];
-  const caption=stats.total===0?'An unnervingly clean slate.':lead===0?'Equally guilty. Weirdly romantic.':`${leader} leads by ${format(lead)}. Congratulations?`;
+  const caption=stats.total===0?'':lead===0?'Equally guilty.':`${leader} leads by ${format(lead)}.`;
   const ratio=stats.total?stats.totals[0]/stats.total*100:50;
-  $('rivalry').innerHTML=`<div class="rivalry-top"><span>THE BLAME GAME <span aria-hidden="true">↔</span></span><span class="rivalry-caption">${escape(caption)}</span></div><div class="rivalry-bar" role="img" aria-label="${escape(state.names[0])}: ${stats.totals[0]} swears. ${escape(state.names[1])}: ${stats.totals[1]} swears."><span class="rivalry-fill" style="width:${ratio}%"></span><span class="rivalry-fill" style="width:${100-ratio}%"></span></div>`;
+  $('rivalry').hidden=stats.total===0;
+  $('rivalry').innerHTML=`<div class="rivalry-bar" role="img" aria-label="${escape(state.names[0])}: ${stats.totals[0]} swears. ${escape(state.names[1])}: ${stats.totals[1]} swears."><span class="rivalry-fill" style="width:${ratio}%"></span><span class="rivalry-fill" style="width:${100-ratio}%"></span></div>${caption?`<p class="rivalry-caption">${escape(caption)}</p>`:''}`;
 }
 function renderJar(stats) {
   renderPlayers(stats);
-  const today=stats.events.filter(event=>event.day===localDay());
-  const todayTotals=[0,1].map(player=>today.filter(event=>event.player===player).length);
-  const winner=today.length===0?'Nobody yet':todayTotals[0]===todayTotals[1]?'A tie':state.names[todayTotals[0]>todayTotals[1]?0:1];
-  $('daily-stats').innerHTML=`<div class="daily-stat"><strong>${format(today.length)}</strong><span>swears today</span></div><div class="daily-stat"><strong>${format(stats.dayTotal)}</strong><span>daily record</span></div><div class="daily-stat"><strong>${format(stats.daysActive)}</strong><span>days of chaos</span></div>`;
   const next=ACHIEVEMENTS.find(item=>!unlocked(item,stats));
-  if(next){const value=Math.min(achievementValue(next,stats),next.threshold);$('next-achievement').innerHTML=`<img src="${art(next.sticker)}" width="92" height="92" alt=""><div class="next-info"><span class="eyebrow">NEXT LITTLE BAD DECISION</span><h2>${escape(next.title)}</h2><p>${escape(conditionFor(next))}.</p><div class="progress-track" role="progressbar" aria-label="${escape(next.title)} progress" aria-valuemin="0" aria-valuemax="${next.threshold}" aria-valuenow="${value}"><i style="width:${value/next.threshold*100}%"></i></div><span class="progress-label"><span>${format(value)} / ${format(next.threshold)}</span><button class="text-button" data-go="stickers" type="button">See stickers ↗</button></span></div>`;}
-  else{$('next-achievement').innerHTML=`<img src="${art('crown.svg')}" width="92" height="92" alt=""><div class="next-info"><span class="eyebrow">FULLY COLLECTED. DEEPLY CONCERNING.</span><h2>You've completed the curse.</h2><p>Every sticker unlocked. Your vocabulary needs an exorcist.</p><button class="text-button" data-go="stickers" type="button">Admire the evidence ↗</button></div>`;}
+  if(next){
+    const value=Math.min(achievementValue(next,stats),next.threshold);
+    $('next-achievement').innerHTML=`<button class="next-link" data-go="stickers" type="button"><img src="${art(next.sticker)}" width="92" height="92" alt=""><span class="next-info"><span class="eyebrow">NEXT STICKER</span><strong class="next-title">${escape(next.title)}</strong><span class="next-condition">${escape(conditionFor(next))}</span><span class="progress-track" role="progressbar" aria-label="${escape(next.title)} progress" aria-valuemin="0" aria-valuemax="${next.threshold}" aria-valuenow="${value}"><i style="width:${value/next.threshold*100}%"></i></span><span class="progress-label">${format(value)} / ${format(next.threshold)}</span></span><span class="next-arrow" aria-hidden="true">↗</span></button>`;
+  } else {
+    $('next-achievement').innerHTML=`<button class="next-link" data-go="stickers" type="button"><img src="${art('goblin')}" width="92" height="92" alt=""><span class="next-info"><strong class="next-title">Collection complete.</strong><span class="next-condition">24 / 24</span></span><span aria-hidden="true">↗</span></button>`;
+  }
 }
 function renderReceipts(stats) {
   const events=filteredEvents(stats.events),filtered=statsFor(events);
-  const periodLabel=period==='today'?'today':period==='week'?'past 7 days':'all time';
-  $('big-stats').innerHTML=[{value:filtered.total,label:'Total little crimes',caption:periodLabel},{value:filtered.totals[0],label:state.names[0],caption:'lavender suspect'},{value:filtered.totals[1],label:state.names[1],caption:'lime suspect'},{value:filtered.daysActive,label:'Days with swears',caption:'a paper trail was left'}].map(item=>`<div class="stat-tile"><span class="stat-value">${format(item.value)}</span><span class="stat-name">${escape(item.label)}</span><span class="stat-caption">${escape(item.caption)}</span></div>`).join('');
+  $('big-stats').innerHTML=[{value:filtered.total,label:'Swears'},{value:filtered.totals[0],label:state.names[0]},{value:filtered.totals[1],label:state.names[1]},{value:filtered.daysActive,label:'Days with swears'}].map(item=>`<div class="stat-tile"><span class="stat-value">${format(item.value)}</span><span class="stat-name">${escape(item.label)}</span></div>`).join('');
   $('chart-legend').innerHTML=state.names.map((name,player)=>`<span><i class="player-dot ${player===0?'lavender':'lime'}"></i>${escape(name)}</span>`).join('');
   const days=weekDays().map(day=>({...day,counts:[0,1].map(player=>stats.events.filter(event=>event.day===day.key&&event.player===player).length)}));
   const max=Math.max(1,...days.flatMap(day=>day.counts));
   $('week-chart').innerHTML=days.map(day=>`<div class="chart-day ${day.key===localDay()?'today':''}"><div class="chart-bars" role="img" aria-label="${escape(day.date.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}))}: ${escape(state.names[0])} ${day.counts[0]}, ${escape(state.names[1])} ${day.counts[1]}">${day.counts.map(count=>`<div class="chart-bar" style="height:${count?Math.max(3,count/max*82):1}%">${count?`<b>${format(count)}</b>`:''}</div>`).join('')}</div><span class="chart-day-label">${escape(day.date.toLocaleDateString(undefined,{weekday:'short'}))}</span></div>`).join('');
   const maxHour=Math.max(...filtered.hours),peakHour=filtered.hours.indexOf(maxHour);
-  const peakLabel=maxHour?new Date(2000,0,1,peakHour).toLocaleTimeString(undefined,{hour:'numeric'}):'No evidence';
+  const peakLabel=maxHour?new Date(2000,0,1,peakHour).toLocaleTimeString(undefined,{hour:'numeric'}):'—';
   const average=filtered.daysActive?(filtered.total/filtered.daysActive).toFixed(1):'0';
-  $('insights').innerHTML=`<div class="insight"><span class="eyebrow">WORST DAY · ${periodLabel.toUpperCase()}</span><strong>${format(filtered.dayTotal)} little crimes</strong><p>A personal best. A societal low.</p></div><div class="insight"><span class="eyebrow">PEAK FILTH HOUR</span><strong>${escape(peakLabel)}</strong><p>${maxHour?`${format(maxHour)} swears logged in this hour. Your mouth has office hours.`:'Your villain origin story is pending.'}</p></div><div class="insight"><span class="eyebrow">AVERAGE PER ACTIVE DAY</span><strong>${average} swears</strong><p>Only days with a logged swear count. Innocence is statistically inconvenient.</p></div>`;
+  $('insights').innerHTML=`<div class="insight"><span class="eyebrow">DAILY RECORD</span><strong>${format(filtered.dayTotal)}</strong></div><div class="insight"><span class="eyebrow">PEAK HOUR</span><strong>${escape(peakLabel)}</strong>${maxHour?`<small>${format(maxHour)} ${maxHour===1?'swear':'swears'}</small>`:''}</div><div class="insight"><span class="eyebrow">AVG / DAY WITH SWEARS</span><strong>${average}</strong></div>`;
   const recent=events.slice().sort((a,b)=>b.at.localeCompare(a.at)||b.id.localeCompare(a.id));
-  $('history-list').innerHTML=recent.length?recent.slice(0,historyLimit).map(event=>`<div class="history-item"><span class="history-avatar ${event.player===0?'lavender':'lime'}"><img src="${art(event.player===0?'devil-bunny.svg':'angel-slime.svg')}" width="35" height="35" alt=""></span><div class="history-info"><strong>${escape(state.names[event.player])} left a little crime</strong><small>${escape(humanDate(event))}</small></div><span class="history-plus">+1</span><button type="button" class="undo-button" data-undo="${event.id}" aria-label="Undo ${escape(state.names[event.player])}'s swear on ${escape(humanDate(event))}">Undo</button></div>`).join(''):`<div class="empty-state"><img src="${art('halo.svg')}" width="92" height="92" alt=""><h3>Suspiciously fucking innocent.</h3><p>No swears logged ${period==='all'?'yet':period==='today'?'today':'in the last seven days'}. We respect your commitment to the bit.</p></div>`;
+  $('history-list').innerHTML=recent.length?recent.slice(0,historyLimit).map(event=>`<div class="history-item"><span class="history-avatar ${event.player===0?'lavender':'lime'}"><img src="${art(state.avatars[event.player])}" width="35" height="35" alt=""></span><div class="history-info"><strong>${escape(state.names[event.player])}</strong><small>${escape(humanDate(event))}</small></div><span class="history-plus">+1</span><button type="button" class="undo-button" data-undo="${event.id}" aria-label="Undo ${escape(state.names[event.player])}'s swear on ${escape(humanDate(event))}">Undo</button></div>`).join(''):`<div class="empty-state"><img src="${art('angel-slime')}" width="92" height="92" alt=""><p>No swears ${period==='all'?'yet':period==='today'?'today':'in the last seven days'}.</p></div>`;
+  $('history-title').textContent='History · '+({today:'Today',week:'7 days',all:'All time'})[period];
   $('history-more').hidden=recent.length<=historyLimit;
   document.querySelectorAll('[data-period]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.period===period)));
 }
 function renderStickers(stats) {
   const count=ACHIEVEMENTS.filter(item=>unlocked(item,stats)).length;
-  $('collection-stamp').innerHTML=`${count}<span>COLLECTED</span>`;$('album-count').textContent=`${count} / ${ACHIEVEMENTS.length} unlocked`;$('nav-sticker-count').textContent=count;
+  $('album-count').textContent=`${count} / ${ACHIEVEMENTS.length} unlocked`;
   const items=ACHIEVEMENTS.filter(item=>stickerFilter==='all'||unlocked(item,stats));
-  $('sticker-grid').innerHTML=items.length?items.map(item=>{const earned=unlocked(item,stats);return `<button type="button" class="sticker-tile ${earned?'unlocked':''}" data-sticker="${escape(item.id)}" aria-label="${escape(item.title)}. ${earned?'Unlocked':'Locked'}. ${escape(conditionFor(item))}."><span class="sticker-status" aria-hidden="true">${earned?'✓':'?'}</span><img src="${art(item.sticker)}" width="114" height="114" alt=""><strong>${escape(item.title)}</strong><small>${escape(conditionFor(item))}</small></button>`;}).join(''):`<div class="empty-state" style="grid-column:1/-1"><img src="${art('ghost.svg')}" width="92" height="92" alt=""><h3>Your criminal record is adorable.</h3><p>And empty. Stickers appear here as your jar fills up.</p></div>`;
+  $('sticker-grid').innerHTML=items.length?items.map(item=>{const earned=unlocked(item,stats);return `<button type="button" class="sticker-tile ${earned?'unlocked':''}" data-sticker="${escape(item.id)}" aria-label="${escape(item.title)}. ${earned?'Unlocked':'Locked'}. ${escape(conditionFor(item))}."><span class="sticker-status" aria-hidden="true">${earned?'✓':'?'}</span><img src="${art(item.sticker)}" width="114" height="114" alt=""><strong>${escape(item.title)}</strong><small>${escape(conditionFor(item))}</small></button>`;}).join(''):`<div class="empty-state" style="grid-column:1/-1"><img src="${art('ghost')}" width="92" height="92" alt=""><p>No stickers unlocked yet.</p></div>`;
   document.querySelectorAll('[data-filter]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.filter===stickerFilter)));
 }
 function renderStatus() {
-  const labels={local:state.pending?`${state.pending} to sync`:'Saved here',syncing:'Syncing',synced:'All caught up',offline:'Offline · saved',error:'Sync needs love'};
+  const labels={local:state.pending?`${state.pending} pending`:'Saved',syncing:'Syncing',synced:'Synced',offline:'Offline',error:'Error'};
   $('sync-label').textContent=labels[state.status]||'Saved here';$('sync-status').dataset.status=state.status;
   $('sync-status').setAttribute('aria-label',`${labels[state.status]||'Saved locally'}. Tap to sync now.`);
   const warning=$('storage-warning');warning.hidden=!state.error;warning.textContent=state.error||'';
-  if($('share-dialog').open){$('share-sync').textContent=state.status==='synced'?'All caught up. Your accomplice can open this link now.':state.status==='syncing'?'Syncing your receipts before the accomplice arrives…':state.status==='offline'?'You are offline. The link works, but open the jar online to send your latest receipts.':'Your jar saves here first. Open it online to sync receipts with your accomplice.';}
+  if($('share-dialog').open){
+    const notice=$('share-sync');notice.hidden=state.status==='synced';
+    notice.textContent=state.error|| (state.status==='offline'?'Offline. Recent changes will sync when you reconnect.':state.status==='syncing'?'Syncing…':state.pending?`${state.pending} changes waiting to sync.`:'Waiting to sync.');
+  }
 }
 function renderSettings() {
   $('sound-toggle').innerHTML=svg(settings.sound?'sound':'muted');$('sound-toggle').setAttribute('aria-label',settings.sound?'Mute sounds':'Enable sounds');$('sound-toggle').setAttribute('aria-pressed',String(!settings.sound));
@@ -201,6 +220,7 @@ function render(nextState) {
   const previousNames=state.names.join('|');state=nextState;
   renderStatus();const stats=statsFor();renderJar(stats);renderReceipts(stats);renderStickers(stats);
   if(pwa&&previousNames!==state.names.join('|'))pwa.updateNames(state.names);
+  if(avatarPlayer!==null&&document.querySelector('#avatar-dialog')?.open)avatarPicker.update({name:state.names[avatarPlayer],selected:state.avatars[avatarPlayer]});
 }
 function setTab(tab) {
   if(!['jar','receipts','stickers'].includes(tab))return;
@@ -214,31 +234,30 @@ function openShare() { $('invite-link').value=store.getInviteUrl();$('native-sha
 function openSticker(id) {
   const item=ACHIEVEMENTS.find(achievement=>achievement.id===id);if(!item)return;
   const stats=statsFor(),earned=unlocked(item,stats),value=Math.min(achievementValue(item,stats),item.threshold);
-  $('sticker-detail-content').innerHTML=`<img src="${art(item.sticker)}" width="210" height="210" alt="${escape(item.title)} collectible sticker"><span class="eyebrow">${earned?'EARNED THROUGH QUESTIONABLE CHOICES':'STILL SEALED IN THE CURSED PACK'}</span><h2 id="sticker-title">${escape(item.title)}</h2><p>${escape(item.description)}</p><div class="detail-condition">${escape(conditionFor(item))}<br><span>${format(value)} / ${format(item.threshold)} · ${earned?'UNLOCKED':'LOCKED'}</span></div>`;openDialog('sticker-dialog');
+  $('sticker-detail-content').innerHTML=`<img src="${art(item.sticker)}" width="210" height="210" alt="${escape(item.title)} collectible sticker"><h2 id="sticker-title">${escape(item.title)}</h2><p>${escape(item.description)}</p><div class="detail-condition">${escape(conditionFor(item))}<br><span>${earned?'Unlocked':`${format(value)} / ${format(item.threshold)}`}</span></div>`;openDialog('sticker-dialog');
 }
 function exportJar() {
   try {
     const data=store.exportData(),blob=new Blob([typeof data==='string'?data:JSON.stringify(data,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`swear-jar-${localDay()}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('Receipts downloaded. Keep this file private: it includes your jar key.');
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`swear-jar-${localDay()}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('Backup downloaded. Keep it private: it contains your jar key.');
   }catch(error){showError(error);}
 }
 
 $('settings-open').innerHTML=svg('settings');['jar','receipts','stickers'].forEach(name=>$(`nav-${name}`).innerHTML=svg(name));
 $('settings-open').addEventListener('click',()=>openSettings());
-$('sound-toggle').addEventListener('click',()=>{settings.sound=!settings.sound;saveSettings();if(settings.sound)sound();showToast(settings.sound?'Sound on. The jar has opinions.':'Sound off. Silent but fucking deadly.');});
+$('sound-toggle').addEventListener('click',()=>{settings.sound=!settings.sound;saveSettings();if(settings.sound)sound();});
 $('settings-sound').addEventListener('click',()=>{settings.sound=!settings.sound;saveSettings();if(settings.sound)sound();});
 $('settings-haptics').addEventListener('click',()=>{settings.haptics=!settings.haptics;saveSettings();if(settings.haptics&&navigator.vibrate)navigator.vibrate(18);});
 $('sync-status').addEventListener('click',()=>void store.sync());
-$('names-form').addEventListener('submit',async event=>{event.preventDefault();const names=[$('name-0').value.trim(),$('name-1').value.trim()];if(names.some(name=>!name||[...name].length>24)){showToast('Each suspect needs a name, up to 24 characters.');return;}const button=event.submitter;button.disabled=true;try{for(let i=0;i<2;i++)if(names[i]!==state.names[i])await store.rename(i,names[i]);$('settings-dialog').close();showToast('Aliases updated. We still know what you did.');}catch(error){showError(error);}finally{button.disabled=false;}});
+$('names-form').addEventListener('submit',async event=>{event.preventDefault();const names=[$('name-0').value.trim(),$('name-1').value.trim()];if(names.some(name=>!name||[...name].length>24)){showToast('Enter two names, up to 24 characters each.');return;}const button=event.submitter;button.disabled=true;try{for(let i=0;i<2;i++)if(names[i]!==state.names[i])await store.rename(i,names[i]);$('settings-dialog').close();showToast('Names saved.');}catch(error){showError(error);}finally{button.disabled=false;}});
 $('share-open').addEventListener('click',openShare);$('settings-share').addEventListener('click',()=>{$('settings-dialog').close();openShare();});
-$('copy-invite').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('invite-link').value);showToast('Invite copied. Choose your accomplice poorly.');$('copy-invite').textContent='Copied ✓';setTimeout(()=>$('copy-invite').textContent='Copy invite link',2200);}catch{$('invite-link').focus();$('invite-link').select();showToast('Copy was blocked. The link is selected—copy it manually.');}});
+$('copy-invite').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('invite-link').value);$('copy-invite').textContent='Copied';setTimeout(()=>$('copy-invite').textContent='Copy link',2200);}catch{$('invite-link').focus();$('invite-link').select();showToast('Copy was blocked. The link is selected—copy it manually.');}});
 $('native-share').addEventListener('click',async()=>{try{await navigator.share({title:'Join my Swear Jar',text:'Cute faces. Foul mouths. Same jar?',url:store.getInviteUrl()});}catch(error){if(error.name!=='AbortError')showError(error);}});
-$('join-button').addEventListener('click',async()=>{const input=$('join-link').value.trim();if(!input){$('join-link').focus();return;}const button=$('join-button');button.disabled=true;try{await store.joinJar(input);$('share-dialog').close();$('join-link').value='';showToast('Same jar. Double the plausible deniability.');}catch(error){showError(error);}finally{button.disabled=false;}});
+$('join-button').addEventListener('click',async()=>{const input=$('join-link').value.trim();if(!input){$('join-link').focus();return;}const button=$('join-button');button.disabled=true;try{await store.joinJar(input);$('share-dialog').close();$('join-link').value='';showToast('Jar joined.');}catch(error){showError(error);}finally{button.disabled=false;}});
 $('export-button').addEventListener('click',exportJar);$('settings-export').addEventListener('click',exportJar);
 $('install-open').addEventListener('click',()=>{$('settings-dialog').close();openDialog('install-dialog');});
 $('install-button').addEventListener('click',async()=>{try{await pwa?.install();}catch(error){showError(error);}});
 $('history-more').addEventListener('click',()=>{historyLimit+=30;renderReceipts(statsFor());});
-$('quick-add').addEventListener('click',()=>{$('quick-dialog').close();if(quickPlayer!==null)void add(quickPlayer);});
 document.addEventListener('click',async event=>{
   const close=event.target.closest('[data-close]');if(close){$(close.dataset.close).close();return;}
   const tab=event.target.closest('[data-tab]');if(tab){setTab(tab.dataset.tab);return;}
@@ -246,17 +265,19 @@ document.addEventListener('click',async event=>{
   const periodButton=event.target.closest('[data-period]');if(periodButton){period=periodButton.dataset.period;historyLimit=30;renderReceipts(statsFor());return;}
   const filter=event.target.closest('[data-filter]');if(filter){stickerFilter=filter.dataset.filter;renderStickers(statsFor());return;}
   const sticker=event.target.closest('[data-sticker]');if(sticker){openSticker(sticker.dataset.sticker);return;}
-  const undo=event.target.closest('[data-undo]');if(undo){try{await store.undo(undo.dataset.undo);showToast('Evidence destroyed. Your secret is slightly safer.');}catch(error){showError(error);}}
+  const undo=event.target.closest('[data-undo]');if(undo){try{await store.undo(undo.dataset.undo);showToast('Undone.');}catch(error){showError(error);}}
 });
 document.querySelectorAll('[role=tab]').forEach(button=>button.addEventListener('keydown',event=>{const tabs=['jar','receipts','stickers'];let index=tabs.indexOf(currentTab);if(event.key==='ArrowRight')index=(index+1)%3;else if(event.key==='ArrowLeft')index=(index+2)%3;else if(event.key==='Home')index=0;else if(event.key==='End')index=2;else return;event.preventDefault();setTab(tabs[index]);$(`tab-${tabs[index]}`).focus();}));
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();}}));
 renderSettings();store.subscribe(render);
-void setupPWA({names:state.names,onInstallReady:()=>{$('install-button').hidden=false;},onUpdateReady:apply=>showToast('Fresh chaos is ready. Update the app?',{actionLabel:'Update',action:apply,duration:15000})}).then(client=>{
+void setupPWA({names:state.names,onInstallReady:()=>{$('install-button').hidden=false;},onUpdateReady:apply=>showToast('Update available.',{actionLabel:'Update',action:apply,duration:15000})}).then(client=>{
   pwa=client;void pwa.updateNames(state.names);if(pwa.canInstall())$('install-button').hidden=false;
 });
 const quick=new URL(location.href).searchParams.get('add');
 if(quick==='0'||quick==='1'){
-  quickPlayer=Number(quick);$('quick-description').textContent=`Log one swear for ${state.names[quickPlayer]}. The receipts await.`;$('quick-add').textContent=`+ ${state.names[quickPlayer]}`;openDialog('quick-dialog');
+  const button=$(`player-card-${Number(quick)}`);
+  button.classList.add('quick-target');button.focus({preventScroll:true});button.scrollIntoView({block:'center'});
+  button.addEventListener('click',()=>button.classList.remove('quick-target'),{once:true});
   const clean=new URL(location.href);clean.searchParams.delete('add');history.replaceState(null,'',clean);
 }
 let lastDay=localDay();setInterval(()=>{if(localDay()!==lastDay){lastDay=localDay();render(state);}},30000);

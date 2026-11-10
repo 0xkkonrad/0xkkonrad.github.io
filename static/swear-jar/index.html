@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f3e8">
-  <meta name="description" content="Cute faces. Foul mouths. A tiny, chaotic swear jar for two people. Count your crimes, collect cursed stickers, and keep the receipts.">
+  <meta name="description" content="Cute faces. Foul mouths. A shared swear jar for two.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="referrer" content="no-referrer">
@@ -14,14 +14,15 @@
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./avatar-picker.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to the jar</a>
   <div class="app-shell">
     <header class="masthead">
-      <a href="./" class="wordmark" aria-label="Swear Jar home"><span class="logo-mark" aria-hidden="true">✱</span> SWEAR JAR<span class="wordmark-dot">®ish</span></a>
+      <a href="./" class="wordmark" aria-label="Swear Jar home"><span class="logo-mark" aria-hidden="true">✱</span> SWEAR JAR</a>
       <div class="header-actions">
-        <button id="sync-status" class="sync-status" type="button" title="Sync your jar"><span class="status-dot"></span><span id="sync-label">Waking up</span></button>
+        <button id="sync-status" class="sync-status" type="button" title="Sync jar"><span class="status-dot"></span><span id="sync-label">Saved</span></button>
         <button class="icon-button" id="sound-toggle" type="button" aria-label="Mute sounds" aria-pressed="false"></button>
         <button class="icon-button" id="settings-open" type="button" aria-label="Open settings"></button>
       </div>
@@ -29,45 +30,66 @@
     <div id="storage-warning" class="error-banner" role="alert" hidden></div>
     <main id="main" tabindex="-1">
       <section id="panel-jar" class="tab-panel" aria-labelledby="tab-jar">
-        <div class="hero">
-          <div class="hero-copy"><span class="eyebrow"><span class="tiny-star">✳</span> THE TWO-PERSON BAD WORD CLUB</span><h1>Cute faces.<br><span>Foul mouths.</span></h1><p>Every “fuck” has a paper trail.</p></div>
-          <div class="hero-sticker" aria-hidden="true"><span class="sticker-stamp">100%<br>TRUST ISSUES</span><img src="./assets/stickers/cursed-jar.svg" alt="" width="190" height="190"><span class="hero-spark spark-one">✦</span><span class="hero-spark spark-two">✦</span></div>
-        </div>
-        <div class="section-line"><span class="eyebrow">TAP THE GUILTY PARTY</span><span class="tiny-note">Honour system. Dishonourable people.</span></div>
+        <div class="jar-heading"><h1>Cute faces.<br><span>Foul mouths.</span></h1><button class="small-button" id="share-open" type="button">Invite ↗</button></div>
         <div class="player-grid" id="player-grid"></div>
         <div class="rivalry" id="rivalry"></div>
-        <div class="dashboard-grid">
-          <section class="paper-card daily-card"><div class="card-heading"><h2>Today's damage</h2><span class="tag">LIVE RECEIPTS</span></div><div class="daily-stats" id="daily-stats"></div><button class="text-button" data-go="receipts" type="button">Follow the paper trail <span aria-hidden="true">↗</span></button></section>
-          <section class="paper-card next-card" id="next-achievement"></section>
-        </div>
-        <div class="jar-bottom"><p><span aria-hidden="true">♡</span> No microphones. Just snitches.</p><button class="text-button" id="share-open" type="button">Invite your accomplice <span aria-hidden="true">↗</span></button></div>
+        <section class="paper-card next-card" id="next-achievement"></section>
       </section>
       <section id="panel-receipts" class="tab-panel" aria-labelledby="tab-receipts" hidden>
-        <div class="page-heading"><div><span class="eyebrow">THE DATA IS DAMNING</span><h1>Keep the<br><span>receipts.</span></h1><p>Your mouth has a criminal record.</p></div><img class="page-sticker" src="./assets/stickers/receipt.svg" width="150" height="150" alt="A cute receipt with a very long rap sheet"></div>
+        <div class="page-heading"><h1>Receipts</h1></div>
         <div class="period-control" aria-label="Statistics period"><button type="button" data-period="today">Today</button><button type="button" data-period="week">7 days</button><button type="button" data-period="all" aria-pressed="true">All time</button></div>
         <div id="big-stats" class="big-stats"></div>
-        <section class="paper-card chart-card"><div class="card-heading"><div><span class="eyebrow">PAST 7 DAYS</span><h2>A week of bad decisions</h2></div><div id="chart-legend" class="chart-legend"></div></div><div id="week-chart" class="week-chart"></div><p class="chart-caption">Every bar is a swear you actually logged. No fictional crimes.</p></section>
         <div class="insight-grid" id="insights"></div>
-        <section class="paper-card history-card"><div class="card-heading"><div><span class="eyebrow">EVERY LITTLE CRIME</span><h2>The swear ledger</h2></div><button id="export-button" class="small-button" type="button">Export ↓</button></div><div id="history-list"></div><button id="history-more" class="small-button full-width" type="button" hidden>Load more receipts</button></section>
+        <section class="paper-card chart-card"><div class="card-heading"><h2>Last 7 days</h2><div id="chart-legend" class="chart-legend"></div></div><div id="week-chart" class="week-chart"></div></section>
+        <section class="paper-card history-card"><div class="card-heading"><h2 id="history-title">History</h2><button id="export-button" class="small-button" type="button">Export ↓</button></div><div id="history-list"></div><button id="history-more" class="small-button full-width" type="button" hidden>Show more</button></section>
       </section>
       <section id="panel-stickers" class="tab-panel" aria-labelledby="tab-stickers" hidden>
-        <div class="page-heading"><div><span class="eyebrow">EMOTIONAL SUPPORT CONTRABAND</span><h1>Cursed little<br><span>collectibles.</span></h1><p>Terrible behaviour. Excellent stickers.</p></div><div class="collection-stamp" id="collection-stamp">0<span>COLLECTED</span></div></div>
-        <div class="album-summary"><div><strong id="album-count">0 / 24 unlocked</strong><p>Both players build one gloriously cursed collection.</p></div><div class="period-control" aria-label="Sticker filter"><button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="unlocked">Unlocked</button></div></div>
+        <div class="page-heading"><h1>Stickers</h1></div>
+        <div class="album-summary"><strong id="album-count">0 / 24 unlocked</strong><div class="period-control" aria-label="Sticker filter"><button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="unlocked">Unlocked</button></div></div>
         <div id="sticker-grid" class="sticker-grid"></div>
-        <p class="album-footnote">A sticker is a keepsake, not a dare. Undoing a swear updates your collection too.</p>
+        <p class="album-note">Undo can relock stickers.</p>
       </section>
     </main>
-    <footer class="footer-line"><span>SMALL JAR. MASSIVE VOCABULARY.</span><span>Made for two little menaces. ♡</span></footer>
   </div>
-  <nav class="bottom-nav" aria-label="Main navigation"><div role="tablist" aria-label="Swear Jar views"><button id="tab-jar" role="tab" aria-selected="true" aria-controls="panel-jar" data-tab="jar" type="button"><span class="nav-icon" id="nav-jar"></span><span>The jar</span></button><button id="tab-receipts" role="tab" aria-selected="false" aria-controls="panel-receipts" data-tab="receipts" type="button" tabindex="-1"><span class="nav-icon" id="nav-receipts"></span><span>Receipts</span></button><button id="tab-stickers" role="tab" aria-selected="false" aria-controls="panel-stickers" data-tab="stickers" type="button" tabindex="-1"><span class="nav-icon" id="nav-stickers"></span><span>Stickers</span><span class="nav-count" id="nav-sticker-count">0</span></button></div></nav>
+  <nav class="bottom-nav" aria-label="Main navigation"><div role="tablist" aria-label="Swear Jar views">
+    <button id="tab-jar" role="tab" aria-selected="true" aria-controls="panel-jar" data-tab="jar" type="button"><span class="nav-icon" id="nav-jar"></span><span>Jar</span></button>
+    <button id="tab-receipts" role="tab" aria-selected="false" aria-controls="panel-receipts" data-tab="receipts" type="button" tabindex="-1"><span class="nav-icon" id="nav-receipts"></span><span>Receipts</span></button>
+    <button id="tab-stickers" role="tab" aria-selected="false" aria-controls="panel-stickers" data-tab="stickers" type="button" tabindex="-1"><span class="nav-icon" id="nav-stickers"></span><span>Stickers</span></button>
+  </div></nav>
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <div id="celebration" class="celebration" aria-hidden="true"></div>
-  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-inner"><div class="dialog-heading"><div><span class="eyebrow">TINY ADMIN DEPARTMENT</span><h2 id="settings-title">Jar settings</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="Close settings" type="button">×</button></div><form id="names-form"><p class="form-note">Name the two suspects. Nicknames encouraged.</p><label for="name-0">Suspect one <span class="player-dot lavender"></span></label><input id="name-0" name="name0" maxlength="24" required autocomplete="off"><label for="name-1">Suspect two <span class="player-dot lime"></span></label><input id="name-1" name="name1" maxlength="24" required autocomplete="off"><button class="primary-button" type="submit">Save the suspects</button></form><div class="settings-divider"></div><button class="setting-row" id="settings-sound" type="button"><span><strong>Little crime sounds</strong><small>Bubble pops. Tiny chaos. Zero shame.</small></span><span class="toggle" id="sound-switch" aria-hidden="true"></span></button><button class="setting-row" id="settings-haptics" type="button"><span><strong>Tiny buzz</strong><small>A little nudge with every tap.</small></span><span class="toggle" id="haptics-switch" aria-hidden="true"></span></button><button class="setting-row" id="install-open" type="button"><span><strong>Put us on your home screen</strong><small>One icon. Two terrible influences.</small></span><span aria-hidden="true">↗</span></button><button class="setting-row" id="settings-share" type="button"><span><strong>Share this jar</strong><small>Same jar. Both phones. Maximum snitching.</small></span><span aria-hidden="true">↗</span></button><button class="setting-row" id="settings-export" type="button"><span><strong>Export your receipts</strong><small>Download your complete jar as JSON.</small></span><span aria-hidden="true">↓</span></button><div class="privacy-note"><strong>Trust-based, by design.</strong><p>No recording. No accounts. Your taps stay on this phone and sync to a private Google Sheet. Anyone with your secret jar link can view and add to this jar. Keep it between your accomplices.</p></div><p class="version-note">SWEAR JAR · Cute faces. Foul mouths.</p></div></dialog>
-  <dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-inner"><div class="dialog-heading"><div><span class="eyebrow">CO-DEFENDANT WANTED</span><h2 id="share-title">Same jar.<br>Two little menaces.</h2></div><button class="icon-button" data-close="share-dialog" aria-label="Close sharing" type="button">×</button></div><p>Send this secret link to your person. Open it on their phone to count into the same jar.</p><label for="invite-link">Your private jar link</label><textarea id="invite-link" readonly rows="3" spellcheck="false"></textarea><div class="share-actions"><button class="primary-button" id="copy-invite" type="button">Copy invite link</button><button class="small-button" id="native-share" type="button" hidden>Share ↗</button></div><p class="form-note">The link is the key. Anyone who has it can see your receipts, edit names, and log swears.</p><div id="share-sync" class="notice"></div><div class="settings-divider"></div><label for="join-link">Already have an invite?</label><input id="join-link" type="text" autocomplete="off" placeholder="Paste your accomplice's jar link"><button class="small-button full-width" id="join-button" type="button">Join their jar</button><p class="form-note">Joining switches this phone to their jar. Export your current receipts first if you want a separate copy.</p></div></dialog>
-  <dialog id="install-dialog" aria-labelledby="install-title"><div class="dialog-inner"><div class="dialog-heading"><div><span class="eyebrow">TAKE YOUR BAD HABITS EVERYWHERE</span><h2 id="install-title">Pocket-sized chaos.</h2></div><button class="icon-button" data-close="install-dialog" aria-label="Close installation help" type="button">×</button></div><img class="install-sticker" src="./assets/stickers/devil-bunny.svg" width="120" height="120" alt="Our very innocent devil bunny mascot"><button id="install-button" class="primary-button" type="button" hidden>Install Swear Jar</button><div class="install-steps"><h3>Android · Chrome</h3><p>Open the browser menu <strong>⋮ → Add to home screen → Install</strong>. Once installed, long-press the Swear Jar icon for a quick “+” action for either player. On supported launchers, drag a “+ name” action onto your home screen for its own tile.</p><h3>iPhone · Safari</h3><p>Tap <strong>Share → Add to Home Screen</strong>, then Add. Open the new icon for your full-screen jar.</p><h3>Works without a signal</h3><p>Open the app online once. After that, your taps save on this phone and catch up when you reconnect.</p></div><p class="form-note">Android quick actions open the right player's counter. One tap inside confirms the swear. Launcher labels may take time to update.</p></div></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-inner">
+    <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button class="icon-button" data-close="settings-dialog" aria-label="Close settings" type="button">×</button></div>
+    <form id="names-form">
+      <label for="name-0">Name <span class="player-dot lavender" aria-hidden="true"></span><span class="sr-only">for player one</span></label><input id="name-0" name="name0" maxlength="24" required autocomplete="off">
+      <label for="name-1">Name <span class="player-dot lime" aria-hidden="true"></span><span class="sr-only">for player two</span></label><input id="name-1" name="name1" maxlength="24" required autocomplete="off">
+      <button class="primary-button" type="submit">Save names</button>
+    </form>
+    <div class="settings-divider"></div>
+    <button class="setting-row" id="settings-sound" type="button"><strong>Sound</strong><span class="toggle" id="sound-switch" aria-hidden="true"></span></button>
+    <button class="setting-row" id="settings-haptics" type="button"><strong>Vibration</strong><span class="toggle" id="haptics-switch" aria-hidden="true"></span></button>
+    <button class="setting-row" id="install-open" type="button"><strong>Install app</strong><span aria-hidden="true">↗</span></button>
+    <button class="setting-row" id="settings-share" type="button"><strong>Share jar</strong><span aria-hidden="true">↗</span></button>
+    <button class="setting-row" id="settings-export" type="button"><strong>Export backup</strong><span aria-hidden="true">↓</span></button>
+    <p class="privacy-note">Saved on this phone and synced to private Google Sheets. No recording or accounts. Anyone with the invite link can view and change the jar.</p>
+  </div></dialog>
+  <dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-inner">
+    <div class="dialog-heading"><h2 id="share-title">Share jar</h2><button class="icon-button" data-close="share-dialog" aria-label="Close sharing" type="button">×</button></div>
+    <label for="invite-link">Private invite</label><textarea id="invite-link" readonly rows="3" spellcheck="false"></textarea>
+    <div class="share-actions"><button class="primary-button" id="copy-invite" type="button" aria-live="polite">Copy link</button><button class="small-button" id="native-share" type="button" hidden>Share ↗</button></div>
+    <p class="form-note">Anyone with this link can view and change your jar.</p><div id="share-sync" class="notice" hidden></div>
+    <div class="settings-divider"></div>
+    <label for="join-link">Join another jar</label><input id="join-link" type="text" autocomplete="off" placeholder="Paste an invite link">
+    <button class="small-button full-width" id="join-button" type="button">Join</button><p class="form-note">This switches jars. Export a backup first to keep your current jar's link.</p>
+  </div></dialog>
+  <dialog id="install-dialog" aria-labelledby="install-title"><div class="dialog-inner">
+    <div class="dialog-heading"><h2 id="install-title">Install Swear Jar</h2><button class="icon-button" data-close="install-dialog" aria-label="Close installation help" type="button">×</button></div>
+    <button id="install-button" class="primary-button" type="button" hidden>Install</button>
+    <div class="install-steps"><h3>Android · Chrome</h3><p><strong>⋮ → Add to home screen → Install.</strong> Long-press the app icon for “+ name” shortcuts. Supported launchers let you drag these onto your home screen.</p><h3>iPhone · Safari</h3><p><strong>Share → Add to Home Screen → Add.</strong></p><h3>Offline</h3><p>Open online once to save the app. Offline taps sync when you reconnect.</p></div>
+    <p class="form-note">Shortcuts focus a player’s counter; tap + to count. Renamed shortcuts may take time to update.</p>
+  </div></dialog>
   <dialog id="sticker-dialog" aria-labelledby="sticker-title"><div class="dialog-inner sticker-detail"><button class="icon-button detail-close" data-close="sticker-dialog" aria-label="Close sticker" type="button">×</button><div id="sticker-detail-content"></div></div></dialog>
-  <dialog id="quick-dialog" aria-labelledby="quick-title"><div class="dialog-inner"><div class="dialog-heading"><div><span class="eyebrow">EXPRESS CHECKOUT</span><h2 id="quick-title">Another little crime?</h2></div><button class="icon-button" data-close="quick-dialog" aria-label="Close quick add" type="button">×</button></div><p id="quick-description"></p><button id="quick-add" class="primary-button quick-add" type="button"></button><p class="form-note">Opening a shortcut never counts a swear by itself.</p></div></dialog>
-  <noscript><div class="noscript">This tiny chaos machine needs JavaScript to count and save swears. Please enable it for this site.</div></noscript>
+  <noscript><div class="noscript">Enable JavaScript to count and save swears.</div></noscript>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
